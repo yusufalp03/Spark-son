@@ -22,3 +22,4 @@ graphify-out/cache/ast/
 graphify-out/cache/stat-index.json
 graphify-out/graph.json
 graphify-out/graph.html
+graphify-out/20*/

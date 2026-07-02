@@ -34,8 +34,7 @@ fun LoginScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isSpotifyLoading by remember { mutableStateOf(false) }
-    var isDemoLoading by remember { mutableStateOf(false) }
-    val isLoading = isSpotifyLoading || isDemoLoading
+    val isLoading = isSpotifyLoading
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val isPlaceholder = remember { authService.isCredentialsPlaceholder() }
 
@@ -189,53 +188,6 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedButton(
-                onClick = {
-                    isDemoLoading = true
-                    errorMessage = null
-                    coroutineScope.launch {
-                        val success = authService.signInWithDemo()
-                        isDemoLoading = false
-                        if (!success) {
-                            errorMessage = "Demo girişi sırasında hata oluştu."
-                        }
-                    }
-                },
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("demo_login_button"),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color.LightGray,
-                    disabledContentColor = Color.Gray
-                ),
-                border = ButtonDefaults.outlinedButtonBorder(enabled = !isLoading)
-            ) {
-                if (isDemoLoading) {
-                    CircularProgressIndicator(
-                        color = SpotifyGreen,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp
-                    )
-                } else {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Demo / Geliştirici Girişi",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
@@ -275,7 +227,7 @@ fun LoginScreen(
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = "Lütfen Supabase ve Spotify API anahtarlarınızı AI Studio Secrets panelinden ekleyin.",
+                                text = "Lütfen proje kökündeki .env dosyasına SUPABASE_URL ve SUPABASE_ANON_KEY değerlerini ekleyip uygulamayı yeniden derleyin.",
                                 color = Color.Gray,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp

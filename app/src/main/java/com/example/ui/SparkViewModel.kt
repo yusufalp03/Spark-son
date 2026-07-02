@@ -2,8 +2,6 @@ package com.example.ui
 
 import android.app.Application
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,28 +11,35 @@ import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.handleDeeplinks
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Oturum durumu: açılışta Loading gösterilir, login ekranı "parlamaz". */
+enum class AuthUiState { Loading, LoggedIn, LoggedOut }
 
 class SparkViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "SparkViewModel"
     private val repository = AppRepository(application)
     private val synthEngine = ProfileSynthEngine()
-    private var mediaPlayer: MediaPlayer? = null
 
     val authService = AuthService(repository.supabaseService.supabaseClient)
 
-    // Auth State based on real session status or local demo/bypass login
-    val isUserLoggedIn: StateFlow<Boolean> = combine(
-        authService.mockUserLoggedIn,
+    val myUserId: String?
+        get() = repository.currentUserId()
+
+    val authState: StateFlow<AuthUiState> =
         repository.supabaseService.supabaseClient.auth.sessionStatus
-    ) { mockLogged, sessionStatus ->
-        mockLogged || (sessionStatus is SessionStatus.Authenticated)
-    }
-    .catch { emit(false) }
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+            .map { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> AuthUiState.LoggedIn
+                    is SessionStatus.LoadingFromStorage -> AuthUiState.Loading
+                    else -> AuthUiState.LoggedOut
+                }
+            }
+            .catch { emit(AuthUiState.LoggedOut) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, AuthUiState.Loading)
 
     // UI States
     val myProfile: StateFlow<UserProfile?> = repository.myProfile
@@ -44,12 +49,6 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val matches: StateFlow<List<Match>> = repository.allMatches
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val systemLogs: StateFlow<List<SystemLog>> = repository.recentLogs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val feedbackList: StateFlow<List<UserFeedback>> = repository.allFeedback
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isDiscoverRefreshing = MutableStateFlow(false)
@@ -71,50 +70,35 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     val isAudioPlaying = _isAudioPlaying.asStateFlow()
 
     init {
-        // Log every Supabase session status transition for debugging and analytics
+        // Girişten sonra: profil satırını garanti et, Spotify verisini eşitle,
+        // keşif kuyruğunu ve eşleşmeleri yenile.
         viewModelScope.launch {
-            repository.supabaseService.supabaseClient.auth.sessionStatus.collect { status ->
-                Log.d(TAG, "Supabase session status changed to: $status")
-                val statusName = when (status) {
-                    is SessionStatus.Authenticated -> "Authenticated"
-                    is SessionStatus.NotAuthenticated -> "NotAuthenticated"
-                    is SessionStatus.LoadingFromStorage -> "LoadingFromStorage"
-                    else -> status.toString()
-                }
-                repository.logToDatabase("INFO", "Supabase session status: $statusName")
-            }
-        }
-
-        // Automatically sync Spotify data and refresh discover queue when user logs in
-        viewModelScope.launch {
-            isUserLoggedIn.collect { loggedIn ->
-                if (loggedIn) {
-                    // Run Spotify sync and queue initialization asynchronously in background
+            authState.collect { state ->
+                if (state == AuthUiState.LoggedIn) {
                     launch(Dispatchers.IO) {
                         try {
-                            val token = try {
-                                // Attempt to extract real session access token or provider token if available
-                                repository.supabaseService.supabaseClient.auth.currentSessionOrNull()?.accessToken ?: "mock_spotify_token"
+                            ensureProfileRow()
+
+                            // Spotify API'si için Supabase JWT'si değil,
+                            // OAuth'tan gelen provider token gerekir.
+                            val providerToken = try {
+                                repository.supabaseService.supabaseClient.auth
+                                    .currentSessionOrNull()?.providerToken
                             } catch (e: Exception) {
-                                "mock_spotify_token"
+                                null
                             }
-                            
-                            // Attempt to sync Spotify data in background
-                            repository.profileSyncService.syncSpotifyData(token)
-                            
-                            // Check if we already have discoverable profiles in local cache with a safety timeout
+                            repository.profileSyncService.syncSpotifyData(providerToken)
+
+                            repository.refreshMatches()
+
                             val cachedProfiles = withTimeoutOrNull(3000) {
                                 repository.discoverableProfiles.firstOrNull()
                             } ?: emptyList()
-                            
                             if (cachedProfiles.isEmpty()) {
-                                Log.d(TAG, "Cached profiles empty. Auto-refreshing discover queue.")
                                 refreshDiscoverQueue()
-                            } else {
-                                Log.d(TAG, "Discover queue has ${cachedProfiles.size} cached profiles. Skipping automatic API refresh.")
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Background sync failed during startup", e)
+                            Log.e(TAG, "Background sync failed after login", e)
                         }
                     }
                 }
@@ -122,11 +106,31 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * profiles tablosunda satırımız yoksa oluşturur. likes/matches tabloları
+     * bu satıra foreign key ile bağlı olduğundan swipe öncesi şarttır.
+     */
+    private suspend fun ensureProfileRow() {
+        val userInfo = authService.currentUser
+        val metaName = userInfo?.userMetadata?.get("name")?.toString()?.trim('"') ?: ""
+        val metaAvatar = userInfo?.userMetadata?.get("avatar_url")?.toString()?.trim('"') ?: ""
+
+        val existing = repository.myProfile.firstOrNull()
+        val profile = existing ?: UserProfile(name = metaName, avatarUrl = metaAvatar)
+        repository.saveUserProfile(profile)
+    }
+
     fun refreshDiscoverQueue() {
         viewModelScope.launch {
             _isDiscoverRefreshing.value = true
             repository.refreshDiscoverProfiles()
             _isDiscoverRefreshing.value = false
+        }
+    }
+
+    fun refreshMatches() {
+        viewModelScope.launch {
+            repository.refreshMatches()
         }
     }
 
@@ -152,7 +156,6 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
                 signatureSongArtist = track.artist
             )
             repository.saveUserProfile(updated)
-            repository.logToDatabase("INFO", "Selected signature song: ${track.name} by ${track.artist}")
         }
     }
 
@@ -194,7 +197,6 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val matched = repository.swipeRight(profileId)
             if (matched) {
-                // Show Match Celebration Screen!
                 val profile = discoverProfiles.value.find { it.id == profileId }
                 if (profile != null) {
                     _matchCelebrationProfile.value = profile
@@ -210,15 +212,17 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Messages
-    val isOfflineModeSimulated: StateFlow<Boolean> = repository.isOfflineModeSimulated
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    fun setOfflineModeSimulated(simulated: Boolean) {
-        repository.setOfflineModeSimulated(simulated)
-    }
-
     fun getMessagesForMatch(matchId: String): Flow<List<ChatMessage>> {
         return repository.getMessages(matchId)
+    }
+
+    /** Sohbet ekranı açıldığında çağrılır: geçmişi çeker + realtime dinler. */
+    fun openChat(matchId: String) {
+        repository.startChatSync(matchId)
+    }
+
+    fun closeChat() {
+        repository.stopChatSync()
     }
 
     fun sendChatMessage(matchId: String, text: String) {
@@ -242,7 +246,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Audio & FM Synthesizer playback engine
+    // Audio: imza şarkısı önizlemesi FM synth ile üretilir
     fun playAudioForProfile(profile: DiscoverProfile) {
         if (_activePlayingProfileId.value == profile.id && _isAudioPlaying.value) {
             stopAudio()
@@ -252,53 +256,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         stopAudio()
         _activePlayingProfileId.value = profile.id
         _isAudioPlaying.value = true
-
-        // Try playing real preview URL if exists, else trigger FM Synthesizer!
-        val previewUrl = "" // Empty in mock fallback
-        if (previewUrl.isNotEmpty()) {
-            try {
-                mediaPlayer = MediaPlayer().apply {
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .build()
-                    )
-                    setDataSource(previewUrl)
-                    prepareAsync()
-                    setOnPreparedListener {
-                        start()
-                        viewModelScope.launch {
-                            repository.logToDatabase("INFO", "Streaming preview URL for ${profile.name}'s signature song.")
-                        }
-                    }
-                    setOnErrorListener { mp, _, _ ->
-                        try {
-                            mp.reset()
-                            mp.release()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error releasing MediaPlayer on error path", e)
-                        }
-                        if (mediaPlayer == mp) {
-                            mediaPlayer = null
-                        }
-                        // Fall back to synth on network stream error
-                        synthEngine.start(profile.favoriteGenre)
-                        viewModelScope.launch {
-                            repository.logToDatabase("INFO", "Preview stream failed. Synthesizing ${profile.favoriteGenre} locally.")
-                        }
-                        true
-                    }
-                }
-            } catch (e: Exception) {
-                synthEngine.start(profile.favoriteGenre)
-            }
-        } else {
-            synthEngine.start(profile.favoriteGenre)
-            viewModelScope.launch {
-                repository.logToDatabase("INFO", "FM Synthesising '${profile.favoriteGenre}' melody for ${profile.name}'s signature song.")
-            }
-        }
+        synthEngine.start(profile.favoriteGenre)
     }
 
     fun stopAudio() {
@@ -306,23 +264,8 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         _activePlayingProfileId.value = null
         try {
             synthEngine.stop()
-            mediaPlayer?.let { player ->
-                try {
-                    player.stop()
-                } catch (e: Exception) {
-                    // Suppress if already stopped or in invalid state
-                }
-                player.release()
-            }
-            mediaPlayer = null
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping audio: ${e.message}")
-        }
-    }
-
-    fun clearSystemLogs() {
-        viewModelScope.launch {
-            repository.clearSystemLogs()
         }
     }
 
@@ -332,10 +275,19 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) {
                     repository.supabaseService.supabaseClient.handleDeeplinks(intent)
                 }
-                repository.logToDatabase("INFO", "Successfully handled Spotify/Supabase auth deeplink redirect.")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to handle deep link", e)
-                repository.logToDatabase("ERROR", "Failed to parse deep link: ${e.message}")
+            }
+        }
+    }
+
+    fun signOut() {
+        stopAudio()
+        viewModelScope.launch {
+            try {
+                authService.signOut()
+            } finally {
+                repository.clearLocalData()
             }
         }
     }
@@ -343,5 +295,6 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         stopAudio()
+        repository.stopChatSync()
     }
 }

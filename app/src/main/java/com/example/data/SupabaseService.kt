@@ -5,11 +5,9 @@ import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.example.BuildConfig
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -17,17 +15,38 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.FlowType
 import io.github.jan.supabase.gotrue.SessionManager
 import io.github.jan.supabase.gotrue.CodeVerifierCache
+import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.user.UserSession
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.encodeToString
+
+// Uygulama genelinde paylaşılan tek OkHttp bağlantı havuzu.
+object SharedHttp {
+    val client: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+}
 
 // Safe initialization helper for EncryptedSharedPreferences with hardware-backed Keystore
 fun createEncryptedPrefs(context: Context, fileName: String): android.content.SharedPreferences {
@@ -120,321 +139,341 @@ class AndroidSessionManager(context: Context) : SessionManager {
     }
 }
 
-class SupabaseService(private val database: AppDatabase, private val context: Context) {
+data class SwipeResult(val matched: Boolean, val matchId: String?)
+
+class SupabaseService(private val context: Context) {
     private val TAG = "SupabaseService"
-    private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
 
-    // Real Supabase Client Initialization (Kotlin SDK)
+    private val supabaseUrl = BuildConfig.SUPABASE_URL.trim()
+    private val supabaseKey = BuildConfig.SUPABASE_ANON_KEY.trim()
+
+    fun isConfigured(): Boolean =
+        supabaseUrl.startsWith("https://") &&
+            !supabaseUrl.contains("proje-id") &&
+            supabaseKey.isNotEmpty() &&
+            !supabaseKey.contains("SUPABASE_ANON_KEY") &&
+            !supabaseKey.contains("senin-anon-keyin")
+
     val supabaseClient: SupabaseClient by lazy {
-        val rawUrl = BuildConfig.SUPABASE_URL.trim()
-        val finalUrl = if (rawUrl.isEmpty() || rawUrl.contains("proje-id") || !rawUrl.startsWith("http")) {
-            "https://lfiljzqqbmkkimlwdyfm.supabase.co" // Safe fallback URL format
-        } else {
-            rawUrl
-        }
-
-        val rawKey = BuildConfig.SUPABASE_ANON_KEY.trim()
-        val finalKey = if (rawKey.isEmpty() || rawKey.contains("senin-anon-keyin")) {
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmaWxqenFxYm1ra2ltbHdkeWZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4Mzk3ODAsImV4cCI6MjA5ODQxNTc4MH0.4LY5WR7IyaUdDulAKAp_qnlQBikE7IxI4rVa-fWQfDI"
-        } else {
-            rawKey
-        }
+        // Yapılandırma eksikse istemci yine de oluşturulur (uygulama açılışta
+        // çökmesin diye) fakat tüm çağrılar başarısız olur; LoginScreen
+        // kullanıcıya yapılandırma uyarısı gösterir.
+        val url = if (isConfigured()) supabaseUrl else "https://invalid-not-configured.supabase.co"
+        val key = if (isConfigured()) supabaseKey else "invalid"
 
         createSupabaseClient(
-            supabaseUrl = finalUrl,
-            supabaseKey = finalKey
+            supabaseUrl = url,
+            supabaseKey = key
         ) {
             install(Postgrest)
             install(Realtime)
             install(Auth) {
                 host = "login"
                 scheme = "spark"
+                flowType = FlowType.PKCE
                 sessionManager = AndroidSessionManager(context)
                 codeVerifierCache = AndroidCodeVerifierCache(context)
             }
         }
     }
 
+    private val httpClient: OkHttpClient = SharedHttp.client
 
-    // Gemini Client for generating rich, dynamic organic profiles
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .build()
+    private fun userToken(): String? = supabaseClient.auth.currentAccessTokenOrNull()
 
-    suspend fun fetchDiscoverProfiles(userGenre: String, userArtists: String): List<DiscoverProfile> = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        
-        if (apiKey.isEmpty() || apiKey.contains("MY_GEMINI_API_KEY")) {
-            logToDatabase("WARNING", "Gemini API Key missing. Seeding local curated profiles.")
-            return@withContext getCuratedBackupProfiles(userGenre)
-        }
-
-        val prompt = """
-            Giriş yapan kullanıcının sevdiği müzik tarzı "$userGenre" ve sevdiği sanatçılar "$userArtists".
-            Bu verilere dayanarak, kullanıcıya müzikal uyum sağlayabilecek, müzik zevkini merkezine alan 6 farklı flört adayı profili oluştur.
-            Yanıtı kesinlikle sadece saf bir JSON array formatında döndür. Hiçbir açıklama, markdown işareti veya ek metin ekleme.
-            Format tam olarak şu şekilde olmalıdır:
-            [
-              {
-                "id": "benzersiz_id_1",
-                "name": "İsim",
-                "age": 23,
-                "bio": "Müzik zevkiyle harmanlanmış Türkçe biyografi yazısı.",
-                "avatarUrl": "",
-                "favoriteGenre": "Pop veya Rock veya Electronic vb.",
-                "topArtists": "Sanatçı1, Sanatçı2, Sanatçı3",
-                "topTracks": "Şarkı1, Şarkı2, Şarkı3",
-                "signatureSongId": "spotify:track:rastgeleid",
-                "signatureSongTitle": "İmza Şarkısı Adı",
-                "signatureSongArtist": "İmza Şarkısı Sanatçısı",
-                "signatureSongTrimStart": 15.0,
-                "signatureSongTrimEnd": 45.0,
-                "compatibilityPercentage": 85
-              }
-            ]
-            
-            Kurallar:
-            1. İsimler Türkçe olmalıdır (Melis, Kaan, Zeynep, Tolga, İrem, Berk vb.).
-            2. Yaşlar 20 ile 32 arasında olmalıdır.
-            3. compatibilityPercentage (Uyum yüzdesi) kullanıcının müzik zevkine göre hesaplanmış 50-98 arası gerçekçi bir tam sayı olmalıdır.
-            4. Biyografiler eğlenceli, samimi ve müzik odaklı Türkçe olmalıdır.
-        """.trimIndent()
-
-        try {
-            // Setup Gemini REST request
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
-            
-            val jsonRequest = JSONObject().apply {
-                put("contents", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", prompt)
-                            })
-                        })
-                    })
-                })
-                put("generationConfig", JSONObject().apply {
-                    put("responseMimeType", "application/json")
-                })
-            }
-
-            val requestBody = jsonRequest.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
-            
-            if (response.isSuccessful && responseBody.isNotEmpty()) {
-                val jsonResponse = JSONObject(responseBody)
-                val candidates = jsonResponse.getJSONArray("candidates")
-                val textResponse = candidates.getJSONObject(0)
-                    .getJSONObject("content")
-                    .getJSONArray("parts")
-                    .getJSONObject(0)
-                    .getString("text")
-
-                // Parse json array
-                val listType = Types.newParameterizedType(List::class.java, DiscoverProfile::class.java)
-                val adapter = moshi.adapter<List<DiscoverProfile>>(listType)
-                val profiles = adapter.fromJson(textResponse) ?: emptyList()
-                
-                logToDatabase("INFO", "Gemini API successfully generated ${profiles.size} organic profiles.")
-                profiles
-            } else {
-                Log.e(TAG, "Gemini API call failed with code ${response.code}: $responseBody")
-                logToDatabase("ERROR", "Gemini API error code: ${response.code}")
-                getCuratedBackupProfiles(userGenre)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception during Gemini profile generation", e)
-            logToDatabase("WARNING", "Gemini API Generation Exception: ${e.message}. Seeding backup catalog.")
-            getCuratedBackupProfiles(userGenre)
-        }
+    fun currentUserId(): String? = try {
+        supabaseClient.auth.currentUserOrNull()?.id
+    } catch (e: Exception) {
+        null
     }
 
-    suspend fun syncFeedbackToCloud(feedback: UserFeedback): Boolean = withContext(Dispatchers.IO) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL
-        val supabaseKey = BuildConfig.SUPABASE_ANON_KEY
+    private fun restRequest(path: String, body: String?, prefer: String? = null): Request? {
+        val token = userToken() ?: return null
+        val builder = Request.Builder()
+            .url("$supabaseUrl$path")
+            .addHeader("apikey", supabaseKey)
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Content-Type", "application/json")
+        if (prefer != null) builder.addHeader("Prefer", prefer)
+        if (body != null) builder.post(body.toRequestBody("application/json".toMediaType()))
+        return builder.build()
+    }
 
+    // ---------- Profil ----------
+
+    suspend fun upsertMyProfile(profile: UserProfile): Boolean = withContext(Dispatchers.IO) {
+        val userId = currentUserId() ?: return@withContext false
+        val body = JSONObject().apply {
+            put("id", userId)
+            put("name", profile.name)
+            if (profile.age >= 18) put("age", profile.age) else put("age", JSONObject.NULL)
+            put("bio", profile.bio)
+            put("avatar_url", profile.avatarUrl)
+            put("favorite_genre", profile.favoriteGenre)
+            put("top_artists", profile.topArtists)
+            put("top_tracks", profile.topTracks)
+            put("signature_song_id", profile.signatureSongId)
+            put("signature_song_title", profile.signatureSongTitle)
+            put("signature_song_artist", profile.signatureSongArtist)
+            put("signature_song_trim_start", profile.signatureSongTrimStart)
+            put("signature_song_trim_end", profile.signatureSongTrimEnd)
+        }.toString()
+        val request = restRequest("/rest/v1/profiles", body, prefer = "resolution=merge-duplicates")
+            ?: return@withContext false
         try {
-            val url = "$supabaseUrl/rest/v1/user_feedback"
-            val jsonBody = JSONObject().apply {
-                put("email", feedback.email)
-                put("rating", feedback.rating)
-                put("comment", feedback.comment)
-                put("timestamp", feedback.timestamp)
-            }
-            
-            val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .addHeader("apikey", supabaseKey)
-                .addHeader("Authorization", "Bearer $supabaseKey")
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Prefer", "return=representation")
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
-            if (response.isSuccessful) {
-                logToDatabase("INFO", "Feedback successfully uploaded to real Supabase! Response: $responseBody")
-                true
-            } else {
-                Log.e(TAG, "Supabase feedback upload failed: ${response.code} $responseBody")
-                logToDatabase("ERROR", "Supabase feedback upload failed with code: ${response.code}")
-                false
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Profile upsert failed: ${response.code} ${response.body?.string()}")
+                }
+                response.isSuccessful
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during Supabase feedback upload", e)
-            logToDatabase("WARNING", "Supabase sync exception: ${e.message}")
+            Log.e(TAG, "Profile upsert exception", e)
             false
         }
     }
+
+    // ---------- Keşif ----------
+
+    suspend fun fetchDiscoverProfiles(limit: Int = 20): List<DiscoverProfile> = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("p_limit", limit).toString()
+        val request = restRequest("/rest/v1/rpc/get_discover_profiles", body)
+            ?: return@withContext emptyList()
+        try {
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Discover fetch failed: ${response.code} $responseBody")
+                    return@withContext emptyList()
+                }
+                val array = JSONArray(responseBody)
+                (0 until array.length()).map { i ->
+                    val o = array.getJSONObject(i)
+                    DiscoverProfile(
+                        id = o.getString("id"),
+                        name = o.optString("name"),
+                        age = o.optInt("age", 0),
+                        bio = o.optString("bio"),
+                        avatarUrl = o.optString("avatar_url"),
+                        favoriteGenre = o.optString("favorite_genre"),
+                        topArtists = o.optString("top_artists"),
+                        topTracks = o.optString("top_tracks"),
+                        signatureSongId = o.optString("signature_song_id"),
+                        signatureSongTitle = o.optString("signature_song_title"),
+                        signatureSongArtist = o.optString("signature_song_artist"),
+                        signatureSongTrimStart = o.optDouble("signature_song_trim_start", 15.0).toFloat(),
+                        signatureSongTrimEnd = o.optDouble("signature_song_trim_end", 45.0).toFloat(),
+                        compatibilityPercentage = o.optInt("compatibility", 60)
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Discover fetch exception", e)
+            emptyList()
+        }
+    }
+
+    // ---------- Swipe / Eşleşme ----------
+
+    suspend fun swipe(targetUserId: String, isLike: Boolean): SwipeResult = withContext(Dispatchers.IO) {
+        val body = JSONObject()
+            .put("p_target", targetUserId)
+            .put("p_is_like", isLike)
+            .toString()
+        val request = restRequest("/rest/v1/rpc/handle_swipe", body)
+            ?: return@withContext SwipeResult(matched = false, matchId = null)
+        try {
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Swipe failed: ${response.code} $responseBody")
+                    return@withContext SwipeResult(matched = false, matchId = null)
+                }
+                val array = JSONArray(responseBody)
+                if (array.length() == 0) return@withContext SwipeResult(false, null)
+                val o = array.getJSONObject(0)
+                SwipeResult(
+                    matched = o.optBoolean("matched", false),
+                    matchId = if (o.isNull("match_id")) null else o.optString("match_id")
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Swipe exception", e)
+            SwipeResult(matched = false, matchId = null)
+        }
+    }
+
+    suspend fun fetchMyMatches(): List<Match> = withContext(Dispatchers.IO) {
+        val request = restRequest("/rest/v1/rpc/get_my_matches", "{}")
+            ?: return@withContext emptyList()
+        try {
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Matches fetch failed: ${response.code} $responseBody")
+                    return@withContext emptyList()
+                }
+                val array = JSONArray(responseBody)
+                (0 until array.length()).map { i ->
+                    val o = array.getJSONObject(i)
+                    Match(
+                        id = o.getString("match_id"),
+                        userId = o.getString("other_id"),
+                        userName = o.optString("other_name"),
+                        userAvatarUrl = o.optString("other_avatar_url"),
+                        matchedAt = parseTimestamp(o.optString("created_at")),
+                        lastMessage = o.optString("last_message"),
+                        lastMessageTime = parseTimestamp(o.optString("last_message_at"))
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Matches fetch exception", e)
+            emptyList()
+        }
+    }
+
+    // ---------- Mesajlar ----------
 
     suspend fun syncMessageToCloud(message: ChatMessage): Boolean = withContext(Dispatchers.IO) {
-        val supabaseUrl = BuildConfig.SUPABASE_URL
-        val supabaseKey = BuildConfig.SUPABASE_ANON_KEY
-
+        val body = JSONObject().apply {
+            put("id", message.id)
+            put("match_id", message.matchId)
+            put("sender_id", message.senderId)
+            put("text", message.text)
+        }.toString()
+        val request = restRequest("/rest/v1/messages", body) ?: return@withContext false
         try {
-            val url = "$supabaseUrl/rest/v1/chat_messages"
-            val jsonBody = JSONObject().apply {
-                put("id", message.id)
-                put("matchId", message.matchId)
-                put("senderId", message.senderId)
-                put("text", message.text)
-                put("timestamp", message.timestamp)
-            }
-            
-            val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .addHeader("apikey", supabaseKey)
-                .addHeader("Authorization", "Bearer $supabaseKey")
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Prefer", "return=representation")
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: ""
-            if (response.isSuccessful) {
-                logToDatabase("INFO", "Message synced to real Supabase cloud (ID: ${message.id})!")
-                true
-            } else {
-                Log.e(TAG, "Supabase message sync failed: ${response.code} $responseBody")
-                logToDatabase("ERROR", "Supabase message sync failed with code: ${response.code}")
-                false
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Message sync failed: ${response.code} ${response.body?.string()}")
+                }
+                response.isSuccessful
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during Supabase message sync", e)
-            logToDatabase("WARNING", "Supabase message sync exception: ${e.message}")
+            Log.e(TAG, "Message sync exception", e)
             false
         }
     }
 
-    private suspend fun logToDatabase(level: String, message: String) {
+    suspend fun fetchMessages(matchId: String, limit: Int = 200): List<ChatMessage> = withContext(Dispatchers.IO) {
+        val token = userToken() ?: return@withContext emptyList()
+        val request = Request.Builder()
+            .url("$supabaseUrl/rest/v1/messages?match_id=eq.$matchId&order=created_at.asc&limit=$limit")
+            .addHeader("apikey", supabaseKey)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
         try {
-            database.systemLogDao().insertLog(
-                SystemLog(tag = TAG, message = message, level = level)
-            )
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Messages fetch failed: ${response.code} $responseBody")
+                    return@withContext emptyList()
+                }
+                val array = JSONArray(responseBody)
+                (0 until array.length()).map { i ->
+                    val o = array.getJSONObject(i)
+                    ChatMessage(
+                        id = o.getString("id"),
+                        matchId = o.getString("match_id"),
+                        senderId = o.getString("sender_id"),
+                        text = o.optString("text"),
+                        timestamp = parseTimestamp(o.optString("created_at")),
+                        syncStatus = SyncStatus.SYNCED
+                    )
+                }
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Database logging failed: ${e.message}")
+            Log.e(TAG, "Messages fetch exception", e)
+            emptyList()
         }
     }
 
-    private fun getCuratedBackupProfiles(userGenre: String): List<DiscoverProfile> {
-        val backup = listOf(
-            DiscoverProfile(
-                id = "p1",
-                name = "Melis Kaya",
-                age = 22,
-                bio = "Alternatif rock bağımlısıyım. Mor ve Ötesi konserlerinde kaybolmayı severim. Akustik gitar çalıyorum.",
-                avatarUrl = "",
-                favoriteGenre = "Rock",
-                topArtists = "Mor ve Ötesi, Duman, Arctic Monkeys, Pink Floyd",
-                topTracks = "Cambaz, R U Mine?, Comfortably Numb",
-                signatureSongId = "spotify:track:596133",
-                signatureSongTitle = "Cambaz",
-                signatureSongArtist = "Mor ve Ötesi",
-                compatibilityPercentage = if (userGenre.lowercase() == "rock") 95 else 72
-            ),
-            DiscoverProfile(
-                id = "p2",
-                name = "Burak Yılmaz",
-                age = 25,
-                bio = "Analog synthesizer'lar ve vintage drum machine hayranıyım. Gece sürüşlerinde synthwave dinlemeyi çok severim.",
-                avatarUrl = "",
-                favoriteGenre = "Electronic",
-                topArtists = "Daft Punk, Kavinsky, Moderat, Kraftwerk",
-                topTracks = "Nightcall, Get Lucky, Direct Source",
-                signatureSongId = "spotify:track:596137",
-                signatureSongTitle = "Nightcall",
-                signatureSongArtist = "Kavinsky",
-                compatibilityPercentage = if (userGenre.lowercase() == "electronic") 97 else 64
-            ),
-            DiscoverProfile(
-                id = "p3",
-                name = "Ceren Şahin",
-                age = 24,
-                bio = "Caz barlarında vakit geçirmek hayat felsefem. Yağmurlu günlerde Miles Davis plakları dinlerim.",
-                avatarUrl = "",
-                favoriteGenre = "Jazz",
-                topArtists = "Miles Davis, Billie Holiday, Norah Jones, Chet Baker",
-                topTracks = "Blue in Green, Come Away With Me, Autumn Leaves",
-                signatureSongId = "spotify:track:596138",
-                signatureSongTitle = "Blue in Green",
-                signatureSongArtist = "Miles Davis",
-                compatibilityPercentage = 80
-            ),
-            DiscoverProfile(
-                id = "p4",
-                name = "Kaan Demir",
-                age = 27,
-                bio = "Hip-hop beatleri yapıyorum. Eski okul rap kültürüne hayranım. Türkçe rap ve underground sahnesini takip ediyorum.",
-                avatarUrl = "",
-                favoriteGenre = "Hip-Hop",
-                topArtists = "Ceza, Sagopa Kajmer, Eminem, Kendrick Lamar",
-                topTracks = "Neyim Var Ki, Lose Yourself, HUMBLE.",
-                signatureSongId = "spotify:track:596139",
-                signatureSongTitle = "Neyim Var Ki",
-                signatureSongArtist = "Ceza ft. Sagopa",
-                compatibilityPercentage = if (userGenre.lowercase() == "hip-hop") 94 else 58
-            ),
-            DiscoverProfile(
-                id = "p5",
-                name = "İrem Öztürk",
-                age = 23,
-                bio = "Indie pop melodileri ve melankolik şarkılar vazgeçilmezim. Kendi halinde şarkı sözleri yazıyorum.",
-                avatarUrl = "",
-                favoriteGenre = "Pop",
-                topArtists = "Sertab Erener, Sezen Aksu, Lana Del Rey, Billie Eilish",
-                topTracks = "Rengarenk, Video Games, Bad Guy",
-                signatureSongId = "spotify:track:596131",
-                signatureSongTitle = "Video Games",
-                signatureSongArtist = "Lana Del Rey",
-                compatibilityPercentage = if (userGenre.lowercase() == "pop") 91 else 76
-            ),
-            DiscoverProfile(
-                id = "p6",
-                name = "Tolga Arslan",
-                age = 29,
-                bio = "Klasik müzik piyanistiyim. Bach ve Chopin melodileriyle ruhumu dinlendiririm. Konserler veriyorum.",
-                avatarUrl = "",
-                favoriteGenre = "Classical",
-                topArtists = "Bach, Chopin, Beethoven, Mozart",
-                topTracks = "Nocturne Op. 9 No. 2, Moonlight Sonata",
-                signatureSongId = "spotify:track:596144",
-                signatureSongTitle = "Nocturne Op. 9 No. 2",
-                signatureSongArtist = "Chopin",
-                compatibilityPercentage = if (userGenre.lowercase() == "classical") 98 else 50
+    // ---------- Realtime ----------
+
+    private var activeMessagesChannel: RealtimeChannel? = null
+
+    /**
+     * Aktif sohbet için gelen mesajları dinler. Yeni bir sohbete geçildiğinde
+     * önce eski kanal kapatılır.
+     */
+    suspend fun subscribeToMatchMessages(matchId: String): Flow<ChatMessage> {
+        unsubscribeFromMatchMessages()
+        val realtimeChannel = supabaseClient.channel("messages-$matchId")
+        val flow = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+            table = "messages"
+            filter = "match_id=eq.$matchId"
+        }.mapNotNull { action -> parseRealtimeMessage(action.record) }
+        activeMessagesChannel = realtimeChannel
+        realtimeChannel.subscribe()
+        return flow
+    }
+
+    suspend fun unsubscribeFromMatchMessages() {
+        val channel = activeMessagesChannel ?: return
+        activeMessagesChannel = null
+        try {
+            supabaseClient.realtime.removeChannel(channel)
+        } catch (e: Exception) {
+            Log.e(TAG, "Realtime unsubscribe failed", e)
+        }
+    }
+
+    private fun parseRealtimeMessage(record: JsonObject): ChatMessage? {
+        return try {
+            ChatMessage(
+                id = record["id"]?.jsonPrimitive?.contentOrNull ?: return null,
+                matchId = record["match_id"]?.jsonPrimitive?.contentOrNull ?: return null,
+                senderId = record["sender_id"]?.jsonPrimitive?.contentOrNull ?: "",
+                text = record["text"]?.jsonPrimitive?.contentOrNull ?: "",
+                timestamp = parseTimestamp(record["created_at"]?.jsonPrimitive?.contentOrNull ?: ""),
+                syncStatus = SyncStatus.SYNCED
             )
-        )
-        return backup
+        } catch (e: Exception) {
+            Log.e(TAG, "Realtime message parse failed", e)
+            null
+        }
+    }
+
+    // ---------- Geri bildirim ----------
+
+    suspend fun syncFeedbackToCloud(feedback: UserFeedback): Boolean = withContext(Dispatchers.IO) {
+        val userId = currentUserId() ?: return@withContext false
+        val body = JSONObject().apply {
+            put("user_id", userId)
+            put("email", feedback.email)
+            put("rating", feedback.rating)
+            put("comment", feedback.comment)
+        }.toString()
+        val request = restRequest("/rest/v1/feedback", body) ?: return@withContext false
+        try {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "Feedback sync failed: ${response.code} ${response.body?.string()}")
+                }
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Feedback sync exception", e)
+            false
+        }
+    }
+
+    // ---------- Yardımcılar ----------
+
+    companion object {
+        // Postgres timestamptz (ör. 2026-07-02T10:00:00.123456+00:00) → epoch ms.
+        // minSdk 24'te java.time olmadığı için saniye hassasiyetiyle parse edilir.
+        fun parseTimestamp(iso: String): Long {
+            if (iso.length < 19) return System.currentTimeMillis()
+            return try {
+                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                format.timeZone = TimeZone.getTimeZone("UTC")
+                format.parse(iso.substring(0, 19))?.time ?: System.currentTimeMillis()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        }
     }
 }

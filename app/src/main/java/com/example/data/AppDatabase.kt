@@ -14,6 +14,9 @@ interface UserProfileDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveProfile(profile: UserProfile)
+
+    @Query("DELETE FROM user_profile")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -29,18 +32,30 @@ interface DiscoverProfileDao {
 
     @Update
     suspend fun updateProfile(profile: DiscoverProfile)
+
+    @Query("DELETE FROM discover_profile")
+    suspend fun clearAll()
 }
 
 @Dao
 interface MatchDao {
-    @Query("SELECT * FROM matches ORDER BY matchedAt DESC")
+    @Query("SELECT * FROM matches ORDER BY lastMessageTime DESC")
     fun getAllMatches(): Flow<List<Match>>
+
+    @Query("SELECT * FROM matches WHERE id = :matchId LIMIT 1")
+    suspend fun getMatchById(matchId: String): Match?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMatch(match: Match)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMatches(matches: List<Match>)
+
     @Query("DELETE FROM matches WHERE id = :matchId")
     suspend fun deleteMatch(matchId: String)
+
+    @Query("DELETE FROM matches")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -51,32 +66,26 @@ interface ChatMessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: ChatMessage)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMessagesIfAbsent(messages: List<ChatMessage>)
+
     @Query("UPDATE chat_messages SET syncStatus = :status WHERE id = :messageId")
     suspend fun updateSyncStatus(messageId: String, status: SyncStatus)
 
     @Query("SELECT * FROM chat_messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessageById(messageId: String): ChatMessage?
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAll()
 }
 
 @Dao
 interface UserFeedbackDao {
-    @Query("SELECT * FROM user_feedback ORDER BY timestamp DESC")
-    fun getAllFeedback(): Flow<List<UserFeedback>>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFeedback(feedback: UserFeedback)
-}
 
-@Dao
-interface SystemLogDao {
-    @Query("SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 200")
-    fun getRecentLogs(): Flow<List<SystemLog>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLog(log: SystemLog)
-
-    @Query("DELETE FROM system_logs")
-    suspend fun clearLogs()
+    @Query("DELETE FROM user_feedback")
+    suspend fun clearAll()
 }
 
 class Converters {
@@ -97,10 +106,9 @@ class Converters {
         DiscoverProfile::class,
         Match::class,
         ChatMessage::class,
-        UserFeedback::class,
-        SystemLog::class
+        UserFeedback::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -110,7 +118,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun matchDao(): MatchDao
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun userFeedbackDao(): UserFeedbackDao
-    abstract fun systemLogDao(): SystemLogDao
+
+    suspend fun clearAllUserData() {
+        userProfileDao().clearAll()
+        discoverProfileDao().clearAll()
+        matchDao().clearAll()
+        chatMessageDao().clearAll()
+        userFeedbackDao().clearAll()
+    }
 
     companion object {
         @Volatile

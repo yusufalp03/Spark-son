@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,114 +45,16 @@ fun SettingsTab(
         // App settings header
         item {
             Text(
-                text = "Spark Ayarlar & Sistem",
+                text = "Ayarlar",
                 color = TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Spotify entegrasyonu ve bağlantı ayarları.",
+                text = "Hesap ve uygulama ayarları.",
                 color = TextSecondary,
                 fontSize = 12.sp
             )
-        }
-
-        // Spotify credentials information card
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CosmicSurface, RoundedCornerShape(16.dp))
-                    .border(1.dp, SpotifyGreen.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = SpotifyGreenBright,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Spotify Developer Entegrasyonu",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Bu uygulama gerçek Spotify API bağlantıları kullanır. Spotify Client ID ve Secret değerleriniz .env üzerinden güvenle saklanmaktadır. Eğer bağlantı sağlanamazsa, uygulama otomatik olarak yerel müzikal sentez motorunu devreye sokar.",
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
-            }
-        }
-
-        // Offline Mode Simulator Card
-        item {
-            val isOfflineSimulated by viewModel.isOfflineModeSimulated.collectAsState()
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CosmicSurface, RoundedCornerShape(16.dp))
-                    .border(
-                        1.dp,
-                        if (isOfflineSimulated) Color.Red.copy(alpha = 0.4f) else GlassBorder,
-                        RoundedCornerShape(16.dp)
-                    )
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BugReport,
-                            contentDescription = null,
-                            tint = if (isOfflineSimulated) Color.Red else SpotifyGreenBright,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Çevrimdışı Mod Simülatörü",
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = "Offline-First senkronizasyonunu test et.",
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                    Switch(
-                        checked = isOfflineSimulated,
-                        onCheckedChange = { viewModel.setOfflineModeSimulated(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.Red,
-                            checkedTrackColor = Color.Red.copy(alpha = 0.3f),
-                            uncheckedThumbColor = TextDisabled,
-                            uncheckedTrackColor = CosmicSurfaceElevated
-                        ),
-                        modifier = Modifier.testTag("offline_simulator_switch")
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Bu seçeneği açarak internet bağlantısının koptuğu durumları simüle edebilirsiniz. Gönderdiğiniz mesajlar önce 'Hata' durumuna düşer. Tekrar kapatıp 'Yeniden Gönder' ikonuna tıkladığınızda anında eşitlenir!",
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
-            }
         }
 
         // Interactive Feedback reporting card

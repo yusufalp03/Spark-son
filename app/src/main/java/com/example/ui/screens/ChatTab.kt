@@ -41,6 +41,11 @@ fun ChatTab(
     val matches by viewModel.matches.collectAsState()
     var activeMatch by remember { mutableStateOf<Match?>(null) }
 
+    // Sekme her açıldığında eşleşme listesini buluttan tazele
+    LaunchedEffect(Unit) {
+        viewModel.refreshMatches()
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -170,8 +175,14 @@ fun LiveChatView(
 ) {
     val messages by viewModel.getMessagesForMatch(match.id).collectAsState(initial = emptyList())
     var textMessage by remember { mutableStateOf("") }
-    val isOfflineSimulated by viewModel.isOfflineModeSimulated.collectAsState()
+    val myUserId = viewModel.myUserId
     val hasFailedMessage = remember(messages) { messages.any { it.syncStatus == SyncStatus.FAILED } }
+
+    // Sohbet açıkken bulut geçmişini çek ve realtime mesajları dinle
+    DisposableEffect(match.id) {
+        viewModel.openChat(match.id)
+        onDispose { viewModel.closeChat() }
+    }
 
     Column(
         modifier = Modifier
@@ -218,19 +229,11 @@ fun LiveChatView(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                if (isOfflineSimulated) {
-                    Text(
-                        text = "🔴 Çevrimdışı (Simülasyon)",
-                        color = Color.Red,
-                        fontSize = 12.sp
-                    )
-                } else {
-                    Text(
-                        text = "⚡ Supabase Realtime Aktif",
-                        color = SpotifyGreenBright,
-                        fontSize = 12.sp
-                    )
-                }
+                Text(
+                    text = "⚡ Canlı sohbet",
+                    color = SpotifyGreenBright,
+                    fontSize = 12.sp
+                )
             }
         }
 
@@ -269,7 +272,7 @@ fun LiveChatView(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(messages) { message ->
-                val isMe = message.senderId == "me"
+                val isMe = message.senderId == myUserId
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start,

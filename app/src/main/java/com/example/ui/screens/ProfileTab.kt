@@ -371,13 +371,8 @@ fun ProfileTab(
 
             // Sign Out / Oturumu Kapat Button
             item {
-                val coroutineScope = rememberCoroutineScope()
                 Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            viewModel.authService.signOut()
-                        }
-                    },
+                    onClick = { viewModel.signOut() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp, bottom = 24.dp)
