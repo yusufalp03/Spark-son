@@ -13,9 +13,9 @@ import retrofit2.http.*
 // --- API Response Classes ---
 
 data class SpotifyTokenResponse(
-    @Json(name = "access_token") val accessToken: String,
-    @Json(name = "token_type") val tokenType: String,
-    @Json(name = "expires_in") val expiresIn: Int
+    @field:Json(name = "access_token") val accessToken: String,
+    @field:Json(name = "token_type") val tokenType: String,
+    @field:Json(name = "expires_in") val expiresIn: Int
 )
 
 data class SpotifySearchResponse(
@@ -31,7 +31,7 @@ data class SpotifyTrackItem(
     val name: String,
     val artists: List<SpotifyArtistItem>,
     val album: SpotifyAlbumItem,
-    @Json(name = "preview_url") val previewUrl: String?
+    @field:Json(name = "preview_url") val previewUrl: String?
 )
 
 data class SpotifyArtistItem(

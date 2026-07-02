@@ -403,7 +403,9 @@ class SupabaseService(private val context: Context) {
         val realtimeChannel = supabaseClient.channel("messages-$matchId")
         val flow = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "messages"
-            filter = "match_id=eq.$matchId"
+            filter {
+                eq("match_id", matchId)
+            }
         }.mapNotNull { action -> parseRealtimeMessage(action.record) }
         activeMessagesChannel = realtimeChannel
         realtimeChannel.subscribe()
