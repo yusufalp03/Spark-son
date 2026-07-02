@@ -3,7 +3,25 @@
 -- Supabase Dashboard > SQL Editor'de bu dosyanın tamamını çalıştırın.
 -- Güvenlik modeli: tüm tablolarda RLS açık; istemci yalnızca kendi
 -- verisini yazabilir, keşif/eşleşme mantığı SECURITY DEFINER RPC'lerde.
+--
+-- DİKKAT: Aşağıdaki drop bloğu, uygulamaya ait eski/deneme tabloları
+-- (farklı kolon yapısıyla önceden oluşturulmuş olabilir) tamamen siler.
+-- Bu script temiz kurulum içindir; korumak istediğiniz gerçek veri varsa
+-- önce yedekleyin.
 -- ============================================================
+
+drop table if exists public.messages cascade;
+drop table if exists public.likes cascade;
+drop table if exists public.matches cascade;
+drop table if exists public.feedback cascade;
+drop table if exists public.profiles cascade;
+drop table if exists public.user_music_tastes cascade; -- eski sürümden kalma
+drop table if exists public.chat_messages cascade;     -- eski sürümden kalma
+drop table if exists public.user_feedback cascade;     -- eski sürümden kalma
+
+drop function if exists public.get_discover_profiles(int);
+drop function if exists public.handle_swipe(uuid, boolean);
+drop function if exists public.get_my_matches();
 
 -- ---------- PROFILES ----------
 create table if not exists public.profiles (
