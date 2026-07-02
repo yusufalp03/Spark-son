@@ -16,3 +16,9 @@
 local.properties
 .env
 debug.keystore
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/cache/ast/
+graphify-out/cache/stat-index.json
+graphify-out/graph.json
+graphify-out/graph.html
