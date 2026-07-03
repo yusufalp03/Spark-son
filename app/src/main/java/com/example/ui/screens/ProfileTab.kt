@@ -23,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.UserProfile
 import com.example.ui.SparkViewModel
 import com.example.ui.theme.*
@@ -91,18 +93,31 @@ fun ProfileTab(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .background(SpotifyGreen, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (name.isNotEmpty()) name.take(1).uppercase() else "S",
-                                color = CosmicBackground,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold
+                        val avatarUrl = myProfile?.avatarUrl.orEmpty()
+                        if (avatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Profil fotoğrafı",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, SpotifyGreen, CircleShape)
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .background(SpotifyGreen, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (name.isNotEmpty()) name.take(1).uppercase() else "S",
+                                    color = CosmicBackground,
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
@@ -268,17 +283,28 @@ fun ProfileTab(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(SpotifyGreen.copy(alpha = 0.2f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        tint = SpotifyGreenBright
+                                if (profile.signatureSongAlbumArt.isNotBlank()) {
+                                    AsyncImage(
+                                        model = profile.signatureSongAlbumArt,
+                                        contentDescription = "Albüm kapağı",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clip(RoundedCornerShape(8.dp))
                                     )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .background(SpotifyGreen.copy(alpha = 0.2f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            tint = SpotifyGreenBright
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
@@ -356,23 +382,27 @@ fun ProfileTab(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = SpotifyGreen,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        if (track.albumImageUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = track.albumImageUrl,
+                                contentDescription = "Albüm kapağı",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = SpotifyGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = track.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text(text = track.artist, color = TextSecondary, fontSize = 12.sp)
-                        }
-                        if (track.previewUrl.isBlank()) {
-                            Text(
-                                text = "Önizleme yok",
-                                color = TextSecondary,
-                                fontSize = 10.sp
-                            )
                         }
                     }
                 }
@@ -418,6 +448,12 @@ fun ProfileInfoRow(label: String, value: String) {
     }
 }
 
+/** Saniyeyi m:ss biçiminde gösterir (ör. 83 → 1:23). */
+private fun formatSeconds(seconds: Float): String {
+    val total = seconds.toInt().coerceAtLeast(0)
+    return "%d:%02d".format(total / 60, total % 60)
+}
+
 @Composable
 fun SignatureSongTrimmerDialog(
     viewModel: SparkViewModel,
@@ -427,17 +463,19 @@ fun SignatureSongTrimmerDialog(
     val activePlayingId by viewModel.activePlayingProfileId.collectAsState()
     val isAudioPlaying by viewModel.isAudioPlaying.collectAsState()
 
-    val maxSeconds = SparkViewModel.PREVIEW_CLIP_SECONDS
-    val hasPreview = myProfile?.signatureSongPreviewUrl?.isNotBlank() == true
+    val clipLength = SparkViewModel.CLIP_LENGTH_SECONDS
+    // Süre bilinmiyorsa (eski kayıt) 4 dk varsay; Spotify şarkı sonunu kendisi sınırlar
+    val songSeconds = myProfile?.signatureSongDurationMs
+        ?.takeIf { it > 0 }?.let { it / 1000f } ?: 240f
+    val maxStart = (songSeconds - clipLength).coerceAtLeast(0f)
     val isPreviewingClip = isAudioPlaying && activePlayingId == SparkViewModel.MY_TRIM_PREVIEW_ID
 
-    var trimRange by remember {
-        val start = (myProfile?.signatureSongTrimStart ?: 0f).coerceIn(0f, maxSeconds)
-        val end = (myProfile?.signatureSongTrimEnd ?: maxSeconds).coerceIn(start, maxSeconds)
-        mutableStateOf(start..end)
+    var clipStart by remember {
+        mutableStateOf((myProfile?.signatureSongTrimStart ?: 0f).coerceIn(0f, maxStart))
     }
+    val clipEnd = (clipStart + clipLength).coerceAtMost(songSeconds)
 
-    // Diyalog kapanınca çalan önizlemeyi durdur
+    // Diyalog kapanınca çalan kesiti durdur
     DisposableEffect(Unit) {
         onDispose { viewModel.stopAudio() }
     }
@@ -455,22 +493,18 @@ fun SignatureSongTrimmerDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Şarkının 30 saniyelik önizlemesinden en can alıcı kesiti seçin. " +
+                    text = "Şarkının en can alıcı 30 saniyelik kesitini seçin. " +
                         "Keşfet ekranında profilinizi görenler bu kesiti dinler.",
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                RangeSlider(
-                    value = trimRange,
-                    onValueChange = { range ->
-                        // Kesit en az 5 sn olsun
-                        if (range.endInclusive - range.start >= 5f) {
-                            trimRange = range
-                        }
-                    },
-                    valueRange = 0f..maxSeconds,
+                Slider(
+                    value = clipStart,
+                    onValueChange = { clipStart = it.coerceIn(0f, maxStart) },
+                    valueRange = 0f..maxStart.coerceAtLeast(1f),
+                    enabled = maxStart > 0f,
                     colors = SliderDefaults.colors(
                         thumbColor = SpotifyGreenBright,
                         activeTrackColor = SpotifyGreen,
@@ -485,13 +519,13 @@ fun SignatureSongTrimmerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Başlangıç: ${trimRange.start.toInt()} sn",
+                        text = "Başlangıç: ${formatSeconds(clipStart)}",
                         color = SpotifyGreenBright,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Bitiş: ${trimRange.endInclusive.toInt()} sn",
+                        text = "Bitiş: ${formatSeconds(clipEnd)} / ${formatSeconds(songSeconds)}",
                         color = SparkAccentPink,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
@@ -500,45 +534,43 @@ fun SignatureSongTrimmerDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (hasPreview) {
-                    Button(
-                        onClick = {
-                            viewModel.previewMySignatureClip(trimRange.start, trimRange.endInclusive)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isPreviewingClip) SparkAccentPink else CosmicSurface
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = if (isPreviewingClip) Icons.Default.Stop else Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isPreviewingClip) "Durdur" else "Kesiti Dinle",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
-                } else {
+                Button(
+                    onClick = { viewModel.previewMySignatureClip(clipStart, clipEnd) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPreviewingClip) SparkAccentPink else CosmicSurface
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = if (isPreviewingClip) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Bu şarkının Spotify önizlemesi yok; keşfette tür bazlı melodi çalınır. " +
-                            "Kesit dinletmek için önizlemesi olan bir şarkı seçin.",
-                        color = SparkAccentPink,
-                        fontSize = 12.sp
+                        text = if (isPreviewingClip) "Durdur" else "Kesiti Dinle",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
                     )
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Dinleme, cihazınızdaki Spotify uygulaması üzerinden yapılır; " +
+                        "kesit çalma Spotify Premium gerektirir.",
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    viewModel.updateTrimRange(trimRange.start, trimRange.endInclusive)
+                    viewModel.updateTrimRange(clipStart, clipEnd)
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SpotifyGreen)

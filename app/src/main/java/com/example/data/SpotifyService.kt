@@ -31,7 +31,7 @@ data class SpotifyTrackItem(
     val name: String,
     val artists: List<SpotifyArtistItem>,
     val album: SpotifyAlbumItem,
-    @field:Json(name = "preview_url") val previewUrl: String?
+    @field:Json(name = "duration_ms") val durationMs: Long?
 )
 
 data class SpotifyArtistItem(
@@ -145,7 +145,7 @@ class SpotifyService {
                     name = item.name,
                     artist = item.artists.firstOrNull()?.name ?: "Unknown Artist",
                     albumImageUrl = item.album.images.firstOrNull()?.url ?: "",
-                    previewUrl = item.previewUrl ?: ""
+                    durationMs = item.durationMs ?: 0L
                 )
             }
         } catch (e: Exception) {

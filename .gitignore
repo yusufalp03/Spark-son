@@ -23,3 +23,6 @@ graphify-out/cache/stat-index.json
 graphify-out/graph.json
 graphify-out/graph.html
 graphify-out/20*/
+
+# Spotify App Remote AAR derlemede otomatik indirilir
+app/libs/*.aar

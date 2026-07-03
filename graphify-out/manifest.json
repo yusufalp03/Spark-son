@@ -1,7 +1,7 @@
 {
   "app/build.gradle.kts": {
-    "mtime": 1783087378.4908667,
-    "ast_hash": "ab2c0b98d286fe8c4d5e357014b336e4",
+    "mtime": 1783107080.8412995,
+    "ast_hash": "59e74df8582e05830cb436e49a6ceeda",
     "semantic_hash": ""
   },
   "app/src/androidTest/java/com/example/ExampleInstrumentedTest.kt": {
@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/AppDatabase.kt": {
-    "mtime": 1783087607.0108743,
-    "ast_hash": "86a8eb0ca21fadccc6c1252f2a0f8814",
+    "mtime": 1783107097.2372992,
+    "ast_hash": "00f060835d65f09921dd51c59eae86f0",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/AppRepository.kt": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/Models.kt": {
-    "mtime": 1783087606.3068743,
-    "ast_hash": "2e1c2292c5f9fc25adfcf672a4e70275",
+    "mtime": 1783107096.1972992,
+    "ast_hash": "78faeac1b18fb490109e09516f8ac7b7",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/ProfileSyncService.kt": {
@@ -40,18 +40,18 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/SpotifyService.kt": {
-    "mtime": 1783087378.4948666,
-    "ast_hash": "d94ade96c9c3c92aa1e925697964469b",
+    "mtime": 1783107107.065299,
+    "ast_hash": "12d062ddefc3348338ab1dd2506c5f33",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/SupabaseService.kt": {
-    "mtime": 1783087616.4508746,
-    "ast_hash": "edf93a745f01246a5d5346fdc8c6fc88",
+    "mtime": 1783107112.0292988,
+    "ast_hash": "a766dba1fc3f6926ee45a70863954fbf",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/SparkViewModel.kt": {
-    "mtime": 1783087673.3788764,
-    "ast_hash": "514736441c694a614a91a824a8c903a1",
+    "mtime": 1783107196.0692968,
+    "ast_hash": "33fd3e737d325299301679ef71f79509",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/components/SynthEngine.kt": {
@@ -60,13 +60,13 @@
     "semantic_hash": "c07f6eb3d4e9b7a9a776d7cb7f42a1ed"
   },
   "app/src/main/java/com/example/ui/screens/ChatTab.kt": {
-    "mtime": 1783087378.4948666,
-    "ast_hash": "2dbad89e0965ce94a531c7d99ac3473a",
+    "mtime": 1783107423.0732918,
+    "ast_hash": "fc5a39156360088cd032908d9403212e",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/DiscoverTab.kt": {
-    "mtime": 1783087727.5708783,
-    "ast_hash": "2e66dcd364e8748c73ffb8a28b786b75",
+    "mtime": 1783107428.1052916,
+    "ast_hash": "8a68716d1ace7fda45ad3a8c15f54c50",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/LoginScreen.kt": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/ProfileTab.kt": {
-    "mtime": 1783087715.7028778,
-    "ast_hash": "22f07ee08e890eaf3511e4b527b47382",
+    "mtime": 1783107279.817295,
+    "ast_hash": "23cc121ca124aecf9e6b3c7c51253dee",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/SettingsTab.kt": {
@@ -125,8 +125,8 @@
     "semantic_hash": "784c2fdc09b87e8732b81fe9be6da843"
   },
   "README.md": {
-    "mtime": 1783087378.4908667,
-    "ast_hash": "bd5a450dec4d07fc832d0345d2da57c7",
+    "mtime": 1783107465.8572907,
+    "ast_hash": "fdadeefb13cd5bb2a9514b63019e412e",
     "semantic_hash": ""
   },
   "app/src/main/res/mipmap-hdpi/ic_launcher.webp": {
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "supabase/schema.sql": {
-    "mtime": 1783087633.630875,
-    "ast_hash": "5fad33ce1a9d558d568df03f991d255e",
+    "mtime": 1783107128.9972985,
+    "ast_hash": "4d5d74cb0b3b10005d6d31e0f066a302",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -194,9 +194,9 @@
     "ast_hash": "6a45bb38e6c1272f226d721590ad7958",
     "semantic_hash": ""
   },
-  "app/src/main/java/com/example/ui/components/PreviewAudioPlayer.kt": {
-    "mtime": 1783087646.7708755,
-    "ast_hash": "76a0030586ae8421bcdda7183c625ce3",
+  "app/src/main/java/com/example/ui/components/SpotifyRemotePlayer.kt": {
+    "mtime": 1783107158.1452978,
+    "ast_hash": "584e061e47ff47b258a389a21089f3d6",
     "semantic_hash": ""
   }
 }

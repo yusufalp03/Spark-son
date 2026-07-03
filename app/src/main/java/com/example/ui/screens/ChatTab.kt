@@ -22,11 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.ChatMessage
 import com.example.data.Match
 import com.example.data.SyncStatus
@@ -132,19 +134,31 @@ fun MatchItemRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar circle
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .background(SpotifyGreen.copy(alpha = 0.2f), CircleShape)
-                .border(2.dp, SpotifyGreen, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = match.userName.take(1).uppercase(),
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+        if (match.userAvatarUrl.isNotBlank()) {
+            AsyncImage(
+                model = match.userAvatarUrl,
+                contentDescription = "${match.userName} avatarı",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, SpotifyGreen, CircleShape)
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(SpotifyGreen.copy(alpha = 0.2f), CircleShape)
+                    .border(2.dp, SpotifyGreen, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = match.userName.take(1).uppercase(),
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -213,11 +227,22 @@ fun LiveChatView(
                     .background(SpotifyGreen, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = match.userName.take(1).uppercase(),
-                    color = CosmicBackground,
-                    fontWeight = FontWeight.Bold
-                )
+                if (match.userAvatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = match.userAvatarUrl,
+                        contentDescription = "${match.userName} avatarı",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Text(
+                        text = match.userName.take(1).uppercase(),
+                        color = CosmicBackground,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

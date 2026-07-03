@@ -5,9 +5,10 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.*
-import com.example.ui.components.PreviewAudioPlayer
 import com.example.ui.components.ProfileSynthEngine
+import com.example.ui.components.SpotifyRemotePlayer
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.handleDeeplinks
@@ -24,7 +25,10 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "SparkViewModel"
     private val repository = AppRepository(application)
     private val synthEngine = ProfileSynthEngine()
-    private val previewPlayer = PreviewAudioPlayer()
+    private val remotePlayer = SpotifyRemotePlayer(
+        clientId = BuildConfig.SPOTIFY_CLIENT_ID,
+        redirectUri = "spark://login"
+    )
 
     val authService = AuthService(repository.supabaseService.supabaseClient)
 
@@ -152,14 +156,17 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     fun selectSignatureSong(track: SpotifyTrack) {
         viewModelScope.launch {
             val current = myProfile.value ?: UserProfile()
+            val songSeconds = track.durationMs / 1000f
+            val clipEnd = if (songSeconds > 0f) minOf(CLIP_LENGTH_SECONDS, songSeconds) else CLIP_LENGTH_SECONDS
             val updated = current.copy(
                 signatureSongId = track.id,
                 signatureSongTitle = track.name,
                 signatureSongArtist = track.artist,
-                signatureSongPreviewUrl = track.previewUrl,
-                // Yeni şarkıda kırpma aralığını tüm önizlemeye sıfırla
+                signatureSongAlbumArt = track.albumImageUrl,
+                signatureSongDurationMs = track.durationMs,
+                // Yeni şarkıda kesit şarkının başına sıfırlanır
                 signatureSongTrimStart = 0f,
-                signatureSongTrimEnd = PREVIEW_CLIP_SECONDS
+                signatureSongTrimEnd = clipEnd
             )
             repository.saveUserProfile(updated)
         }
@@ -252,8 +259,9 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Audio: imza şarkısının kırpılmış Spotify önizleme kesiti çalınır.
-    // Şarkının önizleme URL'i yoksa türe göre FM synth'e geri düşülür.
+    // Audio: imza şarkısının kırpılmış kesiti cihazdaki Spotify uygulamasıyla
+    // (App Remote, Premium gerektirir) tam şarkının içinden çalınır. Spotify
+    // yoksa veya çalma reddedilirse türe göre FM synth'e geri düşülür.
     fun playAudioForProfile(profile: DiscoverProfile) {
         if (_activePlayingProfileId.value == profile.id && _isAudioPlaying.value) {
             stopAudio()
@@ -263,12 +271,20 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         stopAudio()
         _activePlayingProfileId.value = profile.id
         _isAudioPlaying.value = true
-        if (profile.signatureSongPreviewUrl.isNotBlank()) {
-            previewPlayer.play(
-                url = profile.signatureSongPreviewUrl,
+        if (profile.signatureSongId.isNotBlank()) {
+            remotePlayer.playClip(
+                context = getApplication(),
+                trackId = profile.signatureSongId,
                 startSec = profile.signatureSongTrimStart,
-                endSec = profile.signatureSongTrimEnd
-            ) { onClipFinished(profile.id) }
+                endSec = profile.signatureSongTrimEnd,
+                onFinished = { onClipFinished(profile.id) },
+                onError = {
+                    // Kart hâlâ çalıyor görünüyorsa synth'e geri düş
+                    if (_activePlayingProfileId.value == profile.id && _isAudioPlaying.value) {
+                        synthEngine.start(profile.favoriteGenre)
+                    }
+                }
+            )
         } else {
             synthEngine.start(profile.favoriteGenre)
         }
@@ -280,13 +296,20 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
             stopAudio()
             return
         }
-        val url = myProfile.value?.signatureSongPreviewUrl.orEmpty()
-        if (url.isBlank()) return
+        val trackId = myProfile.value?.signatureSongId.orEmpty()
+        if (trackId.isBlank()) return
 
         stopAudio()
         _activePlayingProfileId.value = MY_TRIM_PREVIEW_ID
         _isAudioPlaying.value = true
-        previewPlayer.play(url, startSec, endSec) { onClipFinished(MY_TRIM_PREVIEW_ID) }
+        remotePlayer.playClip(
+            context = getApplication(),
+            trackId = trackId,
+            startSec = startSec,
+            endSec = endSec,
+            onFinished = { onClipFinished(MY_TRIM_PREVIEW_ID) },
+            onError = { onClipFinished(MY_TRIM_PREVIEW_ID) }
+        )
     }
 
     private fun onClipFinished(profileId: String) {
@@ -299,7 +322,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     fun stopAudio() {
         _isAudioPlaying.value = false
         _activePlayingProfileId.value = null
-        previewPlayer.stop()
+        remotePlayer.stop()
         try {
             synthEngine.stop()
         } catch (e: Exception) {
@@ -333,13 +356,13 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         stopAudio()
-        previewPlayer.release()
+        remotePlayer.release()
         repository.stopChatSync()
     }
 
     companion object {
-        /** Spotify önizleme klibi 30 saniyedir; kırpma bu aralık içinde yapılır. */
-        const val PREVIEW_CLIP_SECONDS = 30f
+        /** İmza şarkısı kesitinin uzunluğu (Instagram notu gibi sabit pencere). */
+        const val CLIP_LENGTH_SECONDS = 30f
 
         /** Kırpma diyaloğundaki "kendi kesitim" çalması için sahte profil kimliği. */
         const val MY_TRIM_PREVIEW_ID = "my_trim_preview"
