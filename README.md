@@ -1,6 +1,6 @@
 # Spark 🎵⚡
 
-İnsanları fotoğraf yerine **müzik zevkiyle** eşleştiren flört uygulaması. Her profilin bir "imza şarkısı" vardır; keşfet ekranında kaydırırken o şarkının türüne göre üretilen melodiyi dinlersiniz. Karşılıklı beğeni gerçek zamanlı sohbete dönüşür.
+İnsanları fotoğraf yerine **müzik zevkiyle** eşleştiren flört uygulaması. Her profilin bir "imza şarkısı" vardır: kullanıcı Spotify'dan seçtiği şarkının en can alıcı 30 saniyelik kesitini kırpar; keşfet ekranında kartı gören kişi bu kesiti cihazındaki Spotify uygulaması üzerinden dinler (Spotify Premium gerektirir; çalınamazsa türe göre üretilen melodiye düşülür). Karşılıklı beğeni gerçek zamanlı sohbete dönüşür.
 
 **Teknolojiler:** Kotlin, Jetpack Compose, Room (offline-first), Supabase (Auth + Postgres + Realtime), Spotify API.
 
@@ -34,6 +34,17 @@
 3. Client ID/Secret değerlerini hem Supabase Spotify provider'ına (yukarıdaki adım) hem de `.env` dosyasına girin (şarkı arama API'si için).
 
 > Not: Spotify uygulaması "Development Mode"da iken yalnızca panelden eklediğiniz test kullanıcıları giriş yapabilir. Herkese açmak için Spotify'dan **Extended Quota Mode** talep edin.
+
+### İmza şarkısı kesiti (App Remote)
+
+- Kesit çalma, cihazda yüklü **Spotify uygulaması** üzerinden yapılır ve
+  belirli bir parçayı isteğe bağlı çalmak **Spotify Premium** gerektirir.
+  Çalınamazsa uygulama türe göre üretilen melodiye (synth) geri düşer.
+- Spotify Dashboard'daki **Redirect URIs** listesinde `spark://login`
+  adresinin de bulunması gerekir (App Remote yetkilendirmesi bunu kullanır).
+- Gerekli `spotify-app-remote` AAR'ı Maven'da yayınlanmaz; ilk derlemede
+  GitHub releases'tan **otomatik indirilir** (`app/libs/` altına). İndirme
+  başarısız olursa hata mesajındaki adresten elle indirip aynı klasöre koyun.
 
 ## 4) Uygulamayı derleme
 
@@ -70,7 +81,7 @@ keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -keyalg RSA -ke
 - **Eşleşme:** `handle_swipe` RPC'si — beğeniyi kaydeder, karşılıklı beğeni varsa atomik olarak eşleşme oluşturur.
 - **Sohbet:** mesaj önce Room'a `PENDING_INSERT` yazılır, buluta eşitlenir (offline-first; başarısızsa "yeniden gönder"); karşı tarafın mesajları Supabase Realtime ile anında düşer.
 - **Spotify verisi:** OAuth sonrası kullanıcının gerçek top artist/track/tür verisi profile işlenir ve keşif uyum puanında kullanılır.
-- **Ses:** İmza şarkısı önizlemesi, profilin türüne göre gerçek zamanlı FM sentezi ile üretilir (`ProfileSynthEngine`).
+- **Ses:** İmza şarkısı kesiti, cihazdaki Spotify uygulamasıyla tam şarkının içinden çalınır (`SpotifyRemotePlayer`, App Remote SDK; Premium gerekir). Çalınamazsa profilin türüne göre gerçek zamanlı FM sentezine düşülür (`ProfileSynthEngine`).
 
 ## Giriş (login) sorun giderme
 

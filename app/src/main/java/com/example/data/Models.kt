@@ -17,8 +17,9 @@ data class UserProfile(
     val signatureSongId: String = "",
     val signatureSongTitle: String = "",
     val signatureSongArtist: String = "",
-    val signatureSongPreviewUrl: String = "",
-    // Kırpma aralığı, Spotify'ın 30 sn'lik önizleme klibi içindeki saniyelerdir
+    val signatureSongAlbumArt: String = "",
+    val signatureSongDurationMs: Long = 0L,
+    // Kırpma aralığı: tam şarkı içindeki saniyeler (Spotify App Remote ile çalınır)
     val signatureSongTrimStart: Float = 0f,
     val signatureSongTrimEnd: Float = 30f
 )
@@ -36,7 +37,7 @@ data class DiscoverProfile(
     val signatureSongId: String,
     val signatureSongTitle: String,
     val signatureSongArtist: String,
-    val signatureSongPreviewUrl: String = "",
+    val signatureSongAlbumArt: String = "",
     val signatureSongTrimStart: Float = 0f,
     val signatureSongTrimEnd: Float = 30f,
     val compatibilityPercentage: Int,
@@ -91,5 +92,5 @@ data class SpotifyTrack(
     val name: String,
     val artist: String,
     val albumImageUrl: String = "",
-    val previewUrl: String = ""
+    val durationMs: Long = 0L
 )

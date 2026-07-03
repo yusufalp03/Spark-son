@@ -215,7 +215,8 @@ class SupabaseService(private val context: Context) {
             put("signature_song_id", profile.signatureSongId)
             put("signature_song_title", profile.signatureSongTitle)
             put("signature_song_artist", profile.signatureSongArtist)
-            put("signature_song_preview_url", profile.signatureSongPreviewUrl)
+            put("signature_song_album_art", profile.signatureSongAlbumArt)
+            put("signature_song_duration_ms", profile.signatureSongDurationMs)
             put("signature_song_trim_start", profile.signatureSongTrimStart)
             put("signature_song_trim_end", profile.signatureSongTrimEnd)
         }.toString()
@@ -262,7 +263,7 @@ class SupabaseService(private val context: Context) {
                         signatureSongId = o.optString("signature_song_id"),
                         signatureSongTitle = o.optString("signature_song_title"),
                         signatureSongArtist = o.optString("signature_song_artist"),
-                        signatureSongPreviewUrl = o.optString("signature_song_preview_url"),
+                        signatureSongAlbumArt = o.optString("signature_song_album_art"),
                         signatureSongTrimStart = o.optDouble("signature_song_trim_start", 0.0).toFloat(),
                         signatureSongTrimEnd = o.optDouble("signature_song_trim_end", 30.0).toFloat(),
                         compatibilityPercentage = o.optInt("compatibility", 60)

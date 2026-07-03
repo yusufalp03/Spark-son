@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,19 +28,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.example.data.DiscoverProfile
 import com.example.ui.SparkViewModel
 import com.example.ui.theme.*
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.coroutines.launch
 
 @Composable
 fun DiscoverTab(
@@ -105,22 +113,47 @@ fun DiscoverTab(
                 }
             }
         } else {
-            // Tinder-like Stack UI
+            // Tinder-like Stack UI: arkada sıradaki kart, önde sürüklenebilir kart
             val topProfile = profiles.first()
-            
+            val nextProfile = profiles.getOrNull(1)
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                DiscoverCard(
+                nextProfile?.let { behind ->
+                    Box(
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = 0.92f
+                            scaleY = 0.92f
+                            alpha = 0.5f
+                        }
+                    ) {
+                        DiscoverCard(
+                            profile = behind,
+                            isPlaying = false,
+                            onPlayToggle = {},
+                            onLike = {},
+                            onPass = {}
+                        )
+                    }
+                }
+
+                SwipeableCard(
                     profile = topProfile,
-                    isPlaying = isPlaying && activePlayingId == topProfile.id,
-                    onPlayToggle = { viewModel.playAudioForProfile(topProfile) },
                     onLike = { viewModel.swipeRight(topProfile.id) },
                     onPass = { viewModel.swipeLeft(topProfile.id) }
-                )
+                ) {
+                    DiscoverCard(
+                        profile = topProfile,
+                        isPlaying = isPlaying && activePlayingId == topProfile.id,
+                        onPlayToggle = { viewModel.playAudioForProfile(topProfile) },
+                        onLike = { viewModel.swipeRight(topProfile.id) },
+                        onPass = { viewModel.swipeLeft(topProfile.id) }
+                    )
+                }
             }
         }
 
@@ -143,6 +176,113 @@ fun DiscoverTab(
                 onDismiss = { viewModel.dismissMatchCelebration() }
             )
         }
+    }
+}
+
+/**
+ * Tinder benzeri sürükle-bırak: kart parmakla taşınır, hafifçe döner; eşik
+ * aşılırsa ekran dışına savrulup beğeni/geçme tetiklenir, aşılmazsa yerine
+ * yaylanarak döner. Sürükleme yönüne göre LIKE/NOPE rozetleri belirir.
+ */
+@Composable
+fun SwipeableCard(
+    profile: DiscoverProfile,
+    onLike: () -> Unit,
+    onPass: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    // Yeni profil geldiğinde kart merkezden başlar
+    val offsetX = remember(profile.id) { Animatable(0f) }
+    val offsetY = remember(profile.id) { Animatable(0f) }
+    val threshold = with(LocalDensity.current) { 110.dp.toPx() }
+
+    val likeAlpha = (offsetX.value / threshold).coerceIn(0f, 1f)
+    val nopeAlpha = (-offsetX.value / threshold).coerceIn(0f, 1f)
+
+    fun settleBack() {
+        scope.launch { offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+        scope.launch { offsetY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy)) }
+    }
+
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
+            .graphicsLayer { rotationZ = offsetX.value / 50f }
+            .pointerInput(profile.id) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                            offsetY.snapTo(offsetY.value + dragAmount.y)
+                        }
+                    },
+                    onDragEnd = {
+                        when {
+                            offsetX.value > threshold -> scope.launch {
+                                offsetX.animateTo(2500f, tween(280))
+                                onLike()
+                            }
+                            offsetX.value < -threshold -> scope.launch {
+                                offsetX.animateTo(-2500f, tween(280))
+                                onPass()
+                            }
+                            else -> settleBack()
+                        }
+                    },
+                    onDragCancel = { settleBack() }
+                )
+            }
+    ) {
+        content()
+
+        if (likeAlpha > 0f) {
+            SwipeBadge(
+                text = "LIKE",
+                color = SpotifyGreenBright,
+                rotation = -15f,
+                alpha = likeAlpha,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 28.dp, top = 48.dp)
+            )
+        }
+        if (nopeAlpha > 0f) {
+            SwipeBadge(
+                text = "NOPE",
+                color = SparkAccentPink,
+                rotation = 15f,
+                alpha = nopeAlpha,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 28.dp, top = 48.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SwipeBadge(
+    text: String,
+    color: Color,
+    rotation: Float,
+    alpha: Float,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .graphicsLayer { this.alpha = alpha; rotationZ = rotation }
+            .border(3.dp, color, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp
+        )
     }
 }
 
@@ -180,6 +320,17 @@ fun DiscoverCard(
                         CosmicSurface.copy(alpha = 0.6f),
                         CosmicBackground
                     )
+                )
+            }
+
+            // Profil fotoğrafı: kartın arka planında, gradyanın altında loş görünür
+            if (profile.avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = profile.avatarUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.30f,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
@@ -257,7 +408,8 @@ fun DiscoverCard(
                     VinylDiscPlayer(
                         isPlaying = isPlaying,
                         onPlayToggle = onPlayToggle,
-                        profileName = profile.name
+                        profileName = profile.name,
+                        albumArtUrl = profile.signatureSongAlbumArt
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -281,19 +433,31 @@ fun DiscoverCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(SpotifyGreen.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                                        .border(1.dp, SpotifyGreen.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        tint = SpotifyGreenBright,
-                                        modifier = Modifier.size(20.dp)
+                                if (profile.signatureSongAlbumArt.isNotBlank()) {
+                                    AsyncImage(
+                                        model = profile.signatureSongAlbumArt,
+                                        contentDescription = "Albüm kapağı",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(1.dp, SpotifyGreen.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                                     )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(SpotifyGreen.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                            .border(1.dp, SpotifyGreen.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            tint = SpotifyGreenBright,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
@@ -457,7 +621,8 @@ fun DiscoverCard(
 fun VinylDiscPlayer(
     isPlaying: Boolean,
     onPlayToggle: () -> Unit,
-    profileName: String
+    profileName: String,
+    albumArtUrl: String = ""
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val rotationAngle by infiniteTransition.animateFloat(
@@ -490,24 +655,36 @@ fun VinylDiscPlayer(
             drawCircle(color = Color(0xFF222222), radius = size.width / 4.5f, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
         }
 
-        // Inner Sticker (Neon Colored)
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(SpotifyGreenBright, SpotifyGreen, Color.Black)
-                    ),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = CosmicBackground,
-                modifier = Modifier.size(24.dp)
+        // Inner Sticker: varsa albüm kapağı, yoksa neon etiket
+        if (albumArtUrl.isNotBlank()) {
+            AsyncImage(
+                model = albumArtUrl,
+                contentDescription = "Albüm kapağı",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, SpotifyGreen, CircleShape)
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(SpotifyGreenBright, SpotifyGreen, Color.Black)
+                        ),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = CosmicBackground,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
@@ -626,19 +803,32 @@ fun MatchCelebrationDialog(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     // Partner Vinyl
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .shadow(8.dp, CircleShape)
-                            .background(CosmicSurfaceElevated, CircleShape)
-                            .border(2.dp, SparkAccentPink, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = profile.name.take(3).uppercase(),
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
+                    if (profile.avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = profile.avatarUrl,
+                            contentDescription = "${profile.name} avatarı",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(100.dp)
+                                .shadow(8.dp, CircleShape)
+                                .clip(CircleShape)
+                                .border(2.dp, SparkAccentPink, CircleShape)
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .shadow(8.dp, CircleShape)
+                                .background(CosmicSurfaceElevated, CircleShape)
+                                .border(2.dp, SparkAccentPink, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = profile.name.take(3).uppercase(),
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 

@@ -65,6 +65,33 @@ secrets {
   defaultPropertiesFileName = ".env.example"
 }
 
+// Spotify App Remote SDK Maven'da yayınlanmaz; ilk derlemede GitHub releases'tan
+// otomatik indirilir. İndirme başarısız olursa hata mesajındaki adresten elle
+// indirip app/libs/ altına koyun.
+val spotifyAppRemoteAar = file("libs/spotify-app-remote-release-0.8.0.aar")
+val spotifyAppRemoteUrl =
+  "https://github.com/spotify/android-sdk/releases/download/v0.8.0-appremote_v2.1.0-auth/spotify-app-remote-release-0.8.0.aar"
+
+val downloadSpotifyAppRemote = tasks.register("downloadSpotifyAppRemote") {
+  outputs.file(spotifyAppRemoteAar)
+  onlyIf { !spotifyAppRemoteAar.exists() }
+  doLast {
+    spotifyAppRemoteAar.parentFile.mkdirs()
+    try {
+      java.net.URI(spotifyAppRemoteUrl).toURL().openStream().use { input ->
+        spotifyAppRemoteAar.outputStream().use { output -> input.copyTo(output) }
+      }
+    } catch (e: Exception) {
+      spotifyAppRemoteAar.delete()
+      throw GradleException(
+        "Spotify App Remote AAR indirilemedi. Elle indirip app/libs/ altına koyun: $spotifyAppRemoteUrl",
+        e
+      )
+    }
+  }
+}
+tasks.named("preBuild") { dependsOn(downloadSpotifyAppRemote) }
+
 configurations.all {
   resolutionStrategy {
     force("io.ktor:ktor-client-core:2.3.11")
@@ -114,6 +141,13 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+
+  // Spotify App Remote: imza şarkısı kesitini cihazdaki Spotify uygulamasıyla çalar
+  implementation(files("libs/spotify-app-remote-release-0.8.0.aar"))
+  implementation("com.google.code.gson:gson:2.10.1")
+
+  // Görseller: avatar ve albüm kapağı yükleme
+  implementation("io.coil-kt:coil-compose:2.6.0")
 
   // Supabase
   implementation(libs.supabase.postgrest)
