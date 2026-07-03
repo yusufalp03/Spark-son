@@ -1,197 +1,202 @@
 {
   "app/build.gradle.kts": {
-    "mtime": 1783013369.3548803,
+    "mtime": 1783087378.4908667,
     "ast_hash": "ab2c0b98d286fe8c4d5e357014b336e4",
     "semantic_hash": ""
   },
   "app/src/androidTest/java/com/example/ExampleInstrumentedTest.kt": {
-    "mtime": 1782983977.4010153,
+    "mtime": 1782983978.0810003,
     "ast_hash": "169d6953f40d18aa2bfe64107c55db1d",
     "semantic_hash": "169d6953f40d18aa2bfe64107c55db1d"
   },
   "app/src/main/java/com/example/MainActivity.kt": {
-    "mtime": 1782987557.1279306,
+    "mtime": 1783087378.4908667,
     "ast_hash": "ea0659780c67d71a4c40e216357c8cd7",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/AppDatabase.kt": {
-    "mtime": 1782987281.0399141,
-    "ast_hash": "bc3582508b203b0d4e613458ca4210eb",
+    "mtime": 1783087607.0108743,
+    "ast_hash": "86a8eb0ca21fadccc6c1252f2a0f8814",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/AppRepository.kt": {
-    "mtime": 1782987479.895926,
+    "mtime": 1783087378.4948666,
     "ast_hash": "8ee37d68ad040407b27f372a9a593744",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/AuthService.kt": {
-    "mtime": 1782987381.7719202,
+    "mtime": 1783087378.4948666,
     "ast_hash": "c30ed6aabc8be8315375ea78e579f11d",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/Models.kt": {
-    "mtime": 1782987260.183913,
-    "ast_hash": "f2e41d6bea42377d3ea765cb3cb4532b",
+    "mtime": 1783087606.3068743,
+    "ast_hash": "2e1c2292c5f9fc25adfcf672a4e70275",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/ProfileSyncService.kt": {
-    "mtime": 1782987409.951922,
+    "mtime": 1783087378.4948666,
     "ast_hash": "0bf282d1666337e412f16674296240e8",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/SpotifyService.kt": {
-    "mtime": 1782987445.123924,
-    "ast_hash": "e9a302d198b040df20333bfa253d0aa2",
+    "mtime": 1783087378.4948666,
+    "ast_hash": "d94ade96c9c3c92aa1e925697964469b",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/SupabaseService.kt": {
-    "mtime": 1782987367.1039193,
-    "ast_hash": "864ad672acfbdc5aa8a3a646f7f234b0",
+    "mtime": 1783087616.4508746,
+    "ast_hash": "edf93a745f01246a5d5346fdc8c6fc88",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/SparkViewModel.kt": {
-    "mtime": 1782987532.4679291,
-    "ast_hash": "a3b49ec9596b03e52432dfda19b4cf65",
+    "mtime": 1783087673.3788764,
+    "ast_hash": "514736441c694a614a91a824a8c903a1",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/components/SynthEngine.kt": {
-    "mtime": 1782983977.4075532,
+    "mtime": 1782983978.0863874,
     "ast_hash": "c07f6eb3d4e9b7a9a776d7cb7f42a1ed",
     "semantic_hash": "c07f6eb3d4e9b7a9a776d7cb7f42a1ed"
   },
   "app/src/main/java/com/example/ui/screens/ChatTab.kt": {
-    "mtime": 1782987637.3879354,
+    "mtime": 1783087378.4948666,
     "ast_hash": "2dbad89e0965ce94a531c7d99ac3473a",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/DiscoverTab.kt": {
-    "mtime": 1782983977.4085333,
-    "ast_hash": "1638ab43fd3e774d676017a8640e8400",
-    "semantic_hash": "1638ab43fd3e774d676017a8640e8400"
+    "mtime": 1783087727.5708783,
+    "ast_hash": "2e66dcd364e8748c73ffb8a28b786b75",
+    "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/LoginScreen.kt": {
-    "mtime": 1782987576.2799318,
+    "mtime": 1783087378.4948666,
     "ast_hash": "ca151739235481b3320fb93360884695",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/ProfileTab.kt": {
-    "mtime": 1783013339.3668811,
-    "ast_hash": "8c3f0179a2a3b0ecb34ae7454090ce6a",
+    "mtime": 1783087715.7028778,
+    "ast_hash": "22f07ee08e890eaf3511e4b527b47382",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/SettingsTab.kt": {
-    "mtime": 1783013345.202881,
+    "mtime": 1783087378.4988666,
     "ast_hash": "a5bb0561779b045c86e1722973179880",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/theme/Color.kt": {
-    "mtime": 1782983977.4085333,
+    "mtime": 1782983978.0880406,
     "ast_hash": "b5d51478965b083865deb7a266143292",
     "semantic_hash": "b5d51478965b083865deb7a266143292"
   },
   "app/src/main/java/com/example/ui/theme/Theme.kt": {
-    "mtime": 1782983977.4106073,
+    "mtime": 1782983978.0899746,
     "ast_hash": "511eef44f5ae9c810ca3393f122091f9",
     "semantic_hash": "511eef44f5ae9c810ca3393f122091f9"
   },
   "app/src/main/java/com/example/ui/theme/Type.kt": {
-    "mtime": 1782983977.4106073,
+    "mtime": 1782983978.0899746,
     "ast_hash": "ed0523afc73a7aaf53d4f9eb90a998bd",
     "semantic_hash": "ed0523afc73a7aaf53d4f9eb90a998bd"
   },
   "app/src/test/java/com/example/ExampleRobolectricTest.kt": {
-    "mtime": 1782983977.4198503,
+    "mtime": 1782983978.098075,
     "ast_hash": "3c57cf62cbd7b2ea0082e81f0290b8f0",
     "semantic_hash": "3c57cf62cbd7b2ea0082e81f0290b8f0"
   },
   "app/src/test/java/com/example/ExampleUnitTest.kt": {
-    "mtime": 1782983977.4204905,
+    "mtime": 1782983978.0986662,
     "ast_hash": "0cb7176a6017a03930bec79e16d5ca1c",
     "semantic_hash": "0cb7176a6017a03930bec79e16d5ca1c"
   },
   "build.gradle.kts": {
-    "mtime": 1782987709.8919396,
+    "mtime": 1783087378.4988666,
     "ast_hash": "8e6248556ea8a50117a4511db4a44484",
     "semantic_hash": ""
   },
   "settings.gradle.kts": {
-    "mtime": 1782983977.4626203,
+    "mtime": 1782983978.1440406,
     "ast_hash": "fa68f334f85c5a53b0c114f42767ba6e",
     "semantic_hash": "fa68f334f85c5a53b0c114f42767ba6e"
   },
   "OPTIMIZATIONS.md": {
-    "mtime": 1782983977.2986202,
+    "mtime": 1782983977.9840405,
     "ast_hash": "784c2fdc09b87e8732b81fe9be6da843",
     "semantic_hash": "784c2fdc09b87e8732b81fe9be6da843"
   },
   "README.md": {
-    "mtime": 1783013267.1908827,
+    "mtime": 1783087378.4908667,
     "ast_hash": "bd5a450dec4d07fc832d0345d2da57c7",
     "semantic_hash": ""
   },
   "app/src/main/res/mipmap-hdpi/ic_launcher.webp": {
-    "mtime": 1782983977.4125955,
+    "mtime": 1782983978.0920405,
     "ast_hash": "01b75f50a48499ac0af670e09677a0bf",
     "semantic_hash": "01b75f50a48499ac0af670e09677a0bf"
   },
   "app/src/main/res/mipmap-hdpi/ic_launcher_round.webp": {
-    "mtime": 1782983977.413335,
+    "mtime": 1782983978.0931613,
     "ast_hash": "a28d52b04be2753cfb57df242a71fbc5",
     "semantic_hash": "a28d52b04be2753cfb57df242a71fbc5"
   },
   "app/src/main/res/mipmap-mdpi/ic_launcher.webp": {
-    "mtime": 1782983977.413335,
+    "mtime": 1782983978.0931613,
     "ast_hash": "3e521fc72dc1944518c76d3757a654f1",
     "semantic_hash": "3e521fc72dc1944518c76d3757a654f1"
   },
   "app/src/main/res/mipmap-mdpi/ic_launcher_round.webp": {
-    "mtime": 1782983977.4143875,
+    "mtime": 1782983978.093748,
     "ast_hash": "fe4fe17c3b7cb0ac2f438dca952c26b1",
     "semantic_hash": "fe4fe17c3b7cb0ac2f438dca952c26b1"
   },
   "app/src/main/res/mipmap-xhdpi/ic_launcher.webp": {
-    "mtime": 1782983977.4143875,
+    "mtime": 1782983978.093748,
     "ast_hash": "d5db31435f410a7293bd200845e64961",
     "semantic_hash": "d5db31435f410a7293bd200845e64961"
   },
   "app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp": {
-    "mtime": 1782983977.4152508,
+    "mtime": 1782983978.0942202,
     "ast_hash": "b42944ecf2331d0ef80a251035c6f86c",
     "semantic_hash": "b42944ecf2331d0ef80a251035c6f86c"
   },
   "app/src/main/res/mipmap-xxhdpi/ic_launcher.webp": {
-    "mtime": 1782983977.4152508,
+    "mtime": 1782983978.0942202,
     "ast_hash": "e443ce556842474ef6080056f2b16c4e",
     "semantic_hash": "e443ce556842474ef6080056f2b16c4e"
   },
   "app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp": {
-    "mtime": 1782983977.4160347,
+    "mtime": 1782983978.0949311,
     "ast_hash": "11b466294043a950fec49f7cd7ec3755",
     "semantic_hash": "11b466294043a950fec49f7cd7ec3755"
   },
   "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp": {
-    "mtime": 1782983977.4160347,
+    "mtime": 1782983978.0949311,
     "ast_hash": "55e6173e7de6571d6dd49c4136151467",
     "semantic_hash": "55e6173e7de6571d6dd49c4136151467"
   },
   "app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp": {
-    "mtime": 1782983977.4170218,
+    "mtime": 1782983978.095756,
     "ast_hash": "f8ce10d1f6cc6386a15defbd2a3e83b8",
     "semantic_hash": "f8ce10d1f6cc6386a15defbd2a3e83b8"
   },
   ".claude/settings.json": {
-    "mtime": 1782984725.8589456,
+    "mtime": 1783087378.4908667,
     "ast_hash": "e51077b6a7f1f67afc748f1a32a1557d",
     "semantic_hash": ""
   },
   "supabase/schema.sql": {
-    "mtime": 1782987246.2479122,
-    "ast_hash": "d9c552a454baba02db62165f5af5e0d9",
+    "mtime": 1783087633.630875,
+    "ast_hash": "5fad33ce1a9d558d568df03f991d255e",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1782984999.6241777,
+    "mtime": 1783087378.4908667,
     "ast_hash": "6a45bb38e6c1272f226d721590ad7958",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/example/ui/components/PreviewAudioPlayer.kt": {
+    "mtime": 1783087646.7708755,
+    "ast_hash": "76a0030586ae8421bcdda7183c625ce3",
     "semantic_hash": ""
   }
 }

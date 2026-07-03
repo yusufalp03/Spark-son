@@ -262,12 +262,14 @@ fun DiscoverCard(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Signature Song translucent widget
+                    // Signature Song translucent widget — tıklanınca kırpılmış kesit çalar
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
                             .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
                             .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                            .clickable { onPlayToggle() }
                             .padding(16.dp)
                     ) {
                         Row(

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import com.example.ui.components.PreviewAudioPlayer
 import com.example.ui.components.ProfileSynthEngine
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
@@ -23,6 +24,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "SparkViewModel"
     private val repository = AppRepository(application)
     private val synthEngine = ProfileSynthEngine()
+    private val previewPlayer = PreviewAudioPlayer()
 
     val authService = AuthService(repository.supabaseService.supabaseClient)
 
@@ -153,7 +155,11 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
             val updated = current.copy(
                 signatureSongId = track.id,
                 signatureSongTitle = track.name,
-                signatureSongArtist = track.artist
+                signatureSongArtist = track.artist,
+                signatureSongPreviewUrl = track.previewUrl,
+                // Yeni şarkıda kırpma aralığını tüm önizlemeye sıfırla
+                signatureSongTrimStart = 0f,
+                signatureSongTrimEnd = PREVIEW_CLIP_SECONDS
             )
             repository.saveUserProfile(updated)
         }
@@ -246,7 +252,8 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Audio: imza şarkısı önizlemesi FM synth ile üretilir
+    // Audio: imza şarkısının kırpılmış Spotify önizleme kesiti çalınır.
+    // Şarkının önizleme URL'i yoksa türe göre FM synth'e geri düşülür.
     fun playAudioForProfile(profile: DiscoverProfile) {
         if (_activePlayingProfileId.value == profile.id && _isAudioPlaying.value) {
             stopAudio()
@@ -256,12 +263,43 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         stopAudio()
         _activePlayingProfileId.value = profile.id
         _isAudioPlaying.value = true
-        synthEngine.start(profile.favoriteGenre)
+        if (profile.signatureSongPreviewUrl.isNotBlank()) {
+            previewPlayer.play(
+                url = profile.signatureSongPreviewUrl,
+                startSec = profile.signatureSongTrimStart,
+                endSec = profile.signatureSongTrimEnd
+            ) { onClipFinished(profile.id) }
+        } else {
+            synthEngine.start(profile.favoriteGenre)
+        }
+    }
+
+    /** Kırpma diyaloğu: kendi imza şarkısının seçilen kesitini dinletir/durdurur. */
+    fun previewMySignatureClip(startSec: Float, endSec: Float) {
+        if (_activePlayingProfileId.value == MY_TRIM_PREVIEW_ID && _isAudioPlaying.value) {
+            stopAudio()
+            return
+        }
+        val url = myProfile.value?.signatureSongPreviewUrl.orEmpty()
+        if (url.isBlank()) return
+
+        stopAudio()
+        _activePlayingProfileId.value = MY_TRIM_PREVIEW_ID
+        _isAudioPlaying.value = true
+        previewPlayer.play(url, startSec, endSec) { onClipFinished(MY_TRIM_PREVIEW_ID) }
+    }
+
+    private fun onClipFinished(profileId: String) {
+        if (_activePlayingProfileId.value == profileId) {
+            _isAudioPlaying.value = false
+            _activePlayingProfileId.value = null
+        }
     }
 
     fun stopAudio() {
         _isAudioPlaying.value = false
         _activePlayingProfileId.value = null
+        previewPlayer.stop()
         try {
             synthEngine.stop()
         } catch (e: Exception) {
@@ -295,6 +333,15 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         stopAudio()
+        previewPlayer.release()
         repository.stopChatSync()
+    }
+
+    companion object {
+        /** Spotify önizleme klibi 30 saniyedir; kırpma bu aralık içinde yapılır. */
+        const val PREVIEW_CLIP_SECONDS = 30f
+
+        /** Kırpma diyaloğundaki "kendi kesitim" çalması için sahte profil kimliği. */
+        const val MY_TRIM_PREVIEW_ID = "my_trim_preview"
     }
 }

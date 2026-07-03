@@ -36,8 +36,10 @@ create table if not exists public.profiles (
   signature_song_id text not null default '',
   signature_song_title text not null default '',
   signature_song_artist text not null default '',
-  signature_song_trim_start real not null default 15,
-  signature_song_trim_end real not null default 45,
+  signature_song_preview_url text not null default '',
+  -- Kırpma aralığı: Spotify'ın 30 sn'lik önizleme klibi içindeki saniyeler
+  signature_song_trim_start real not null default 0,
+  signature_song_trim_end real not null default 30,
   updated_at timestamptz not null default now()
 );
 
@@ -170,6 +172,7 @@ returns table (
   signature_song_id text,
   signature_song_title text,
   signature_song_artist text,
+  signature_song_preview_url text,
   signature_song_trim_start real,
   signature_song_trim_end real,
   compatibility int
@@ -185,6 +188,7 @@ as $$
     p.id, p.name, p.age, p.bio, p.avatar_url,
     p.favorite_genre, p.top_artists, p.top_tracks,
     p.signature_song_id, p.signature_song_title, p.signature_song_artist,
+    p.signature_song_preview_url,
     p.signature_song_trim_start, p.signature_song_trim_end,
     least(98, 55
       + case when lower(p.favorite_genre) = lower((select favorite_genre from me)) then 30 else 0 end
@@ -294,3 +298,14 @@ grant execute on function public.get_my_matches() to authenticated;
 revoke execute on function public.get_discover_profiles(int) from anon;
 revoke execute on function public.handle_swipe(uuid, boolean) from anon;
 revoke execute on function public.get_my_matches() from anon;
+
+-- ============================================================
+-- Mevcut kurulum migrasyonu (veriyi silmeden güncellemek için):
+-- yukarıdaki drop bloğunu ÇALIŞTIRMADAN yalnızca şunları çalıştırın:
+--
+--   alter table public.profiles
+--     add column if not exists signature_song_preview_url text not null default '';
+--   drop function if exists public.get_discover_profiles(int);
+--   -- ardından yukarıdaki get_discover_profiles fonksiyon bloğunu ve
+--   -- grant/revoke satırlarını yeniden çalıştırın.
+-- ============================================================
