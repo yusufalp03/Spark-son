@@ -1,16 +1,16 @@
-# Graph Report - Spark-son  (2026-07-02)
+# Graph Report - Spark-son  (2026-07-03)
 
 ## Corpus Check
-- 29 files · ~17,472 words
+- 30 files · ~18,368 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 321 nodes · 486 edges · 38 communities (21 shown, 17 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 15 edges (avg confidence: 0.8)
+- 317 nodes · 499 edges · 23 communities (20 shown, 3 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0f3def0e`
+- Built from commit: `0143c248`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,32 +25,17 @@
 - [[_COMMUNITY_Spotify API Integration|Spotify API Integration]]
 - [[_COMMUNITY_Session Management & Tests|Session Management & Tests]]
 - [[_COMMUNITY_Spotify Profile Sync Service|Spotify Profile Sync Service]]
-- [[_COMMUNITY_FM Synth Audio Engine|FM Synth Audio Engine]]
 - [[_COMMUNITY_Build & Setup Docs|Build & Setup Docs]]
 - [[_COMMUNITY_Instrumented Tests|Instrumented Tests]]
 - [[_COMMUNITY_Unit Tests|Unit Tests]]
+- [[_COMMUNITY_Theme Colors|Theme Colors]]
+- [[_COMMUNITY_Typography|Typography]]
+- [[_COMMUNITY_Root Build Script|Root Build Script]]
+- [[_COMMUNITY_Gradle Settings|Gradle Settings]]
 - [[_COMMUNITY_2) Findings (Prioritized)|2) Findings (Prioritized)]]
-- [[_COMMUNITY_AppDatabase|AppDatabase]]
-- [[_COMMUNITY_UserProfile|UserProfile]]
-- [[_COMMUNITY_Match|Match]]
-- [[_COMMUNITY_CLAUDE|CLAUDE.md]]
-- [[_COMMUNITY_Greeting Test Screenshot (corrupt PNG header)|Greeting Test Screenshot (corrupt PNG header)]]
-- [[_COMMUNITY_AppContainer Dependency Injection|AppContainer Dependency Injection]]
-- [[_COMMUNITY_ChatSync Pipeline Consolidation|Chat/Sync Pipeline Consolidation]]
-- [[_COMMUNITY_Dagger Hilt|Dagger Hilt]]
-- [[_COMMUNITY_Database Logging Overhead|Database Logging Overhead]]
-- [[_COMMUNITY_EncryptedSharedPreferences|EncryptedSharedPreferences]]
-- [[_COMMUNITY_Gemini API Key Setup|Gemini API Key Setup]]
-- [[_COMMUNITY_Main-Thread Blocking in Auth Flows|Main-Thread Blocking in Auth Flows]]
-- [[_COMMUNITY_MediaPlayer Release Leak|MediaPlayer Release Leak]]
-- [[_COMMUNITY_Offline-First Room SSOT|Offline-First Room SSOT]]
-- [[_COMMUNITY_Room Database Indexing|Room Database Indexing]]
-- [[_COMMUNITY_Shared OkHttpClient Singleton|Shared OkHttpClient Singleton]]
-- [[_COMMUNITY_Spotify Token Expiration Handling|Spotify Token Expiration Handling]]
-- [[_COMMUNITY_Structured Concurrency|Structured Concurrency]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `SparkViewModel` - 39 edges
+1. `SparkViewModel` - 41 edges
 2. `AppRepository` - 20 edges
 3. `SupabaseService` - 18 edges
 4. `UserProfile` - 13 edges
@@ -76,95 +61,87 @@
 ## Import Cycles
 - None detected.
 
-## Hyperedges (group relationships)
-- **Offline-First Chat Sync Flow** — app_src_main_java_com_example_data_apprepository, app_src_main_java_com_example_data_appdatabase, app_src_main_java_com_example_data_models, app_src_main_java_com_example_ui_screens_chattab, app_src_main_java_com_example_ui_sparkviewmodel [INFERRED 0.85]
-- **Optimization Audit Target Files** — app_src_main_java_com_example_ui_sparkviewmodel, app_src_main_java_com_example_data_apprepository, app_src_main_java_com_example_data_spotifyservice, app_src_main_java_com_example_data_supabaseservice, app_src_main_java_com_example_data_authservice, app_src_main_java_com_example_ui_screens_loginscreen [EXTRACTED 1.00]
-
-## Communities (38 total, 17 thin omitted)
+## Communities (23 total, 3 thin omitted)
 
 ### Community 0 - "Room Database & DAOs"
-Cohesion: 0.23
-Nodes (5): ChatMessageDao, Converters, String, ChatMessage, SyncStatus
-
-### Community 1 - "ViewModel & Profile State"
-Cohesion: 0.12
-Nodes (9): AndroidViewModel, AuthUiState, Flow, Int, Intent, List, String, SparkViewModel (+1 more)
-
-### Community 2 - "MainActivity & Profile UI"
 Cohesion: 0.10
-Nodes (16): Intent, MainActivity, MainScaffold(), SplashScreen(), Modifier, String, ProfileInfoRow(), ProfileTab() (+8 more)
-
-### Community 3 - "Compose Screens (Chat/Admin)"
-Cohesion: 0.19
-Nodes (11): DiscoverProfileDao, List, DiscoverProfile, DiscoverCard(), DiscoverTab(), Boolean, Modifier, String (+3 more)
-
-### Community 4 - "Chat & Swipe Repository Logic"
-Cohesion: 0.15
-Nodes (8): AppRepository, Boolean, Flow, Int, Job, List, String, UserFeedback
-
-### Community 5 - "Supabase Service & Secure Prefs"
-Cohesion: 0.11
 Nodes (20): android, AndroidCodeVerifierCache, createEncryptedPrefs(), Boolean, Context, Flow, Int, List (+12 more)
 
-### Community 6 - "Auth & Login Flow"
-Cohesion: 0.25
-Nodes (4): AuthService, Boolean, LoginScreen(), UserInfo
-
-### Community 7 - "Spotify API Integration"
-Cohesion: 0.13
-Nodes (15): Boolean, Int, List, Long, String, SpotifyAlbumItem, SpotifyArtistItem, SpotifyAuthApi (+7 more)
-
-### Community 8 - "Session Management & Tests"
-Cohesion: 0.13
-Nodes (8): AndroidSessionManager, UserSession, DummyCodeVerifierCache, DummySessionManager, ExampleRobolectricTest, String, UserSession, SessionManager
-
-### Community 9 - "Spotify Profile Sync Service"
-Cohesion: 0.22
-Nodes (10): Boolean, Int, String, ProfileSyncService, SpotifyArtistDto, SpotifyTopArtistsResponse, SpotifyTopTracksResponse, SpotifyTrackArtistDto (+2 more)
-
-### Community 10 - "FM Synth Audio Engine"
-Cohesion: 0.39
-Nodes (4): Job, String, ProfileSynthEngine, AudioTrack
-
-### Community 11 - "Build & Setup Docs"
-Cohesion: 0.22
-Nodes (8): 1) Gereksinimler, 2) Supabase kurulumu, 3) Spotify Developer kurulumu, 4) Uygulamayı derleme, 5) Yayın (Release) derlemesi, Giriş (login) sorun giderme, Mimari özet, Spark 🎵⚡
-
-### Community 18 - "2) Findings (Prioritized)"
+### Community 1 - "ViewModel & Profile State"
 Cohesion: 0.07
 Nodes (28): 1) Optimization Summary, 1. Unified Clean Constructor-Injected Container (`SparkApp.kt`), 2. Database Indexing Patch (`Models.kt`), 2) Findings (Prioritized), 3. Localization Query Patch (`AppDatabase.kt` / `AppRepository.kt`), 3) Quick Wins (Do First), 4) Deeper Optimizations (Do Next), 4. Secure EncryptedSharedPreferences Storage Patch (`SupabaseService.kt`) (+20 more)
 
-### Community 19 - "AppDatabase"
+### Community 2 - "MainActivity & Profile UI"
+Cohesion: 0.11
+Nodes (10): AndroidViewModel, AuthUiState, Float, Flow, Int, Intent, List, String (+2 more)
+
+### Community 3 - "Compose Screens (Chat/Admin)"
+Cohesion: 0.11
+Nodes (15): Intent, MainActivity, MainScaffold(), SplashScreen(), Modifier, String, ProfileInfoRow(), ProfileTab() (+7 more)
+
+### Community 4 - "Chat & Swipe Repository Logic"
+Cohesion: 0.13
+Nodes (15): Boolean, Int, List, Long, String, SpotifyAlbumItem, SpotifyArtistItem, SpotifyAuthApi (+7 more)
+
+### Community 5 - "Supabase Service & Secure Prefs"
+Cohesion: 0.13
+Nodes (8): AndroidSessionManager, UserSession, DummyCodeVerifierCache, DummySessionManager, ExampleRobolectricTest, String, UserSession, SessionManager
+
+### Community 6 - "Auth & Login Flow"
+Cohesion: 0.16
+Nodes (7): AppRepository, Boolean, Flow, Int, Job, List, String
+
+### Community 7 - "Spotify API Integration"
+Cohesion: 0.19
+Nodes (11): DiscoverProfileDao, List, DiscoverProfile, DiscoverCard(), DiscoverTab(), Boolean, Modifier, String (+3 more)
+
+### Community 8 - "Session Management & Tests"
+Cohesion: 0.11
+Nodes (10): AppDatabase, getDatabase(), Context, Flow, UserFeedbackDao, UserProfileDao, SpotifyTrack, UserFeedback (+2 more)
+
+### Community 9 - "Spotify Profile Sync Service"
 Cohesion: 0.23
-Nodes (5): AppDatabase, getDatabase(), Context, UserFeedbackDao, RoomDatabase
+Nodes (5): ChatMessageDao, Converters, String, ChatMessage, SyncStatus
 
-### Community 20 - "UserProfile"
-Cohesion: 0.18
-Nodes (5): Flow, UserProfileDao, SpotifyTrack, UserProfile, Float
+### Community 11 - "Build & Setup Docs"
+Cohesion: 0.22
+Nodes (10): Boolean, Int, String, ProfileSyncService, SpotifyArtistDto, SpotifyTopArtistsResponse, SpotifyTopTracksResponse, SpotifyTrackArtistDto (+2 more)
 
-### Community 21 - "Match"
+### Community 12 - "Instrumented Tests"
 Cohesion: 0.26
 Nodes (6): MatchDao, Match, ChatTab(), Modifier, LiveChatView(), MatchItemRow()
 
+### Community 13 - "Unit Tests"
+Cohesion: 0.25
+Nodes (4): AuthService, Boolean, LoginScreen(), UserInfo
+
+### Community 14 - "Theme Colors"
+Cohesion: 0.22
+Nodes (8): 1) Gereksinimler, 2) Supabase kurulumu, 3) Spotify Developer kurulumu, 4) Uygulamayı derleme, 5) Yayın (Release) derlemesi, Giriş (login) sorun giderme, Mimari özet, Spark 🎵⚡
+
+### Community 15 - "Typography"
+Cohesion: 0.17
+Nodes (9): Float, Job, String, PreviewAudioPlayer, Job, String, ProfileSynthEngine, AudioTrack (+1 more)
+
 ## Knowledge Gaps
-- **52 isolated node(s):** `SpotifyArtistDto`, `SpotifyTrackArtistDto`, `SpotifyUserTrackDto`, `SpotifyTracksList`, `SpotifyTrackItem` (+47 more)
+- **39 isolated node(s):** `SpotifyArtistDto`, `SpotifyTrackArtistDto`, `SpotifyUserTrackDto`, `SpotifyTracksList`, `SpotifyTrackItem` (+34 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `SparkViewModel` connect `ViewModel & Profile State` to `MainActivity & Profile UI`, `Compose Screens (Chat/Admin)`, `Session Management & Tests`, `UserProfile`, `Match`?**
-  _High betweenness centrality (0.286) - this node is a cross-community bridge._
-- **Why does `UserProfile` connect `UserProfile` to `Spotify Profile Sync Service`, `Chat & Swipe Repository Logic`, `Supabase Service & Secure Prefs`, `ViewModel & Profile State`?**
-  _High betweenness centrality (0.140) - this node is a cross-community bridge._
-- **Why does `SpotifyTrack` connect `UserProfile` to `Spotify API Integration`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+- **Why does `SparkViewModel` connect `MainActivity & Profile UI` to `Compose Screens (Chat/Admin)`, `Supabase Service & Secure Prefs`, `Spotify API Integration`, `Session Management & Tests`, `Instrumented Tests`?**
+  _High betweenness centrality (0.298) - this node is a cross-community bridge._
+- **Why does `UserProfile` connect `Session Management & Tests` to `Room Database & DAOs`, `MainActivity & Profile UI`, `Build & Setup Docs`, `Auth & Login Flow`?**
+  _High betweenness centrality (0.143) - this node is a cross-community bridge._
+- **Why does `SpotifyTrack` connect `Session Management & Tests` to `Chat & Swipe Repository Logic`?**
+  _High betweenness centrality (0.096) - this node is a cross-community bridge._
 - **What connects `SpotifyArtistDto`, `SpotifyTrackArtistDto`, `SpotifyUserTrackDto` to the rest of the system?**
-  _54 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _39 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Room Database & DAOs` be split into smaller, more focused modules?**
+  _Cohesion score 0.09957325746799431 - nodes in this community are weakly interconnected._
 - **Should `ViewModel & Profile State` be split into smaller, more focused modules?**
-  _Cohesion score 0.12169312169312169 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._
 - **Should `MainActivity & Profile UI` be split into smaller, more focused modules?**
-  _Cohesion score 0.10333333333333333 - nodes in this community are weakly interconnected._
-- **Should `Supabase Service & Secure Prefs` be split into smaller, more focused modules?**
-  _Cohesion score 0.10668563300142248 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11088709677419355 - nodes in this community are weakly interconnected._

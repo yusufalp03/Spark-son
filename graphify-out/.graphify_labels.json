@@ -9,7 +9,6 @@
   "7": "Spotify API Integration",
   "8": "Session Management & Tests",
   "9": "Spotify Profile Sync Service",
-  "10": "FM Synth Audio Engine",
   "11": "Build & Setup Docs",
   "12": "Instrumented Tests",
   "13": "Unit Tests",
@@ -22,19 +21,5 @@
   "20": "UserProfile",
   "21": "Match",
   "22": "CLAUDE.md",
-  "23": "build.gradle.kts",
-  "24": "Greeting Test Screenshot (corrupt PNG header)",
-  "25": "AppContainer Dependency Injection",
-  "26": "Chat/Sync Pipeline Consolidation",
-  "27": "Dagger Hilt",
-  "28": "Database Logging Overhead",
-  "29": "EncryptedSharedPreferences",
-  "30": "Gemini API Key Setup",
-  "31": "Main-Thread Blocking in Auth Flows",
-  "32": "MediaPlayer Release Leak",
-  "33": "Offline-First Room SSOT",
-  "34": "Room Database Indexing",
-  "35": "Shared OkHttpClient Singleton",
-  "36": "Spotify Token Expiration Handling",
-  "37": "Structured Concurrency"
+  "23": "build.gradle.kts"
 }

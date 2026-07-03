@@ -12,8 +12,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -365,6 +367,13 @@ fun ProfileTab(
                             Text(text = track.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text(text = track.artist, color = TextSecondary, fontSize = 12.sp)
                         }
+                        if (track.previewUrl.isBlank()) {
+                            Text(
+                                text = "Önizleme yok",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
@@ -415,7 +424,23 @@ fun SignatureSongTrimmerDialog(
     onDismiss: () -> Unit
 ) {
     val myProfile by viewModel.myProfile.collectAsState()
-    var sliderValue by remember { mutableStateOf(myProfile?.signatureSongTrimStart ?: 15f) }
+    val activePlayingId by viewModel.activePlayingProfileId.collectAsState()
+    val isAudioPlaying by viewModel.isAudioPlaying.collectAsState()
+
+    val maxSeconds = SparkViewModel.PREVIEW_CLIP_SECONDS
+    val hasPreview = myProfile?.signatureSongPreviewUrl?.isNotBlank() == true
+    val isPreviewingClip = isAudioPlaying && activePlayingId == SparkViewModel.MY_TRIM_PREVIEW_ID
+
+    var trimRange by remember {
+        val start = (myProfile?.signatureSongTrimStart ?: 0f).coerceIn(0f, maxSeconds)
+        val end = (myProfile?.signatureSongTrimEnd ?: maxSeconds).coerceIn(start, maxSeconds)
+        mutableStateOf(start..end)
+    }
+
+    // Diyalog kapanınca çalan önizlemeyi durdur
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopAudio() }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -430,16 +455,22 @@ fun SignatureSongTrimmerDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Profiller gezinirken şarkının en can alıcı 30 saniyelik kısmını belirleyin.",
+                    text = "Şarkının 30 saniyelik önizlemesinden en can alıcı kesiti seçin. " +
+                        "Keşfet ekranında profilinizi görenler bu kesiti dinler.",
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Slider(
-                    value = sliderValue,
-                    onValueChange = { sliderValue = it },
-                    valueRange = 0f..90f,
+                RangeSlider(
+                    value = trimRange,
+                    onValueChange = { range ->
+                        // Kesit en az 5 sn olsun
+                        if (range.endInclusive - range.start >= 5f) {
+                            trimRange = range
+                        }
+                    },
+                    valueRange = 0f..maxSeconds,
                     colors = SliderDefaults.colors(
                         thumbColor = SpotifyGreenBright,
                         activeTrackColor = SpotifyGreen,
@@ -454,16 +485,52 @@ fun SignatureSongTrimmerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Başlangıç: ${sliderValue.toInt()} sn",
+                        text = "Başlangıç: ${trimRange.start.toInt()} sn",
                         color = SpotifyGreenBright,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Bitiş: ${(sliderValue + 30).toInt()} sn",
+                        text = "Bitiş: ${trimRange.endInclusive.toInt()} sn",
                         color = SparkAccentPink,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (hasPreview) {
+                    Button(
+                        onClick = {
+                            viewModel.previewMySignatureClip(trimRange.start, trimRange.endInclusive)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPreviewingClip) SparkAccentPink else CosmicSurface
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = if (isPreviewingClip) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isPreviewingClip) "Durdur" else "Kesiti Dinle",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Bu şarkının Spotify önizlemesi yok; keşfette tür bazlı melodi çalınır. " +
+                            "Kesit dinletmek için önizlemesi olan bir şarkı seçin.",
+                        color = SparkAccentPink,
+                        fontSize = 12.sp
                     )
                 }
             }
@@ -471,7 +538,7 @@ fun SignatureSongTrimmerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    viewModel.updateTrimRange(sliderValue, sliderValue + 30f)
+                    viewModel.updateTrimRange(trimRange.start, trimRange.endInclusive)
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SpotifyGreen)

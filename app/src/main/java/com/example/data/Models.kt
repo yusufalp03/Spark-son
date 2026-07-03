@@ -17,8 +17,10 @@ data class UserProfile(
     val signatureSongId: String = "",
     val signatureSongTitle: String = "",
     val signatureSongArtist: String = "",
-    val signatureSongTrimStart: Float = 15f,
-    val signatureSongTrimEnd: Float = 45f
+    val signatureSongPreviewUrl: String = "",
+    // Kırpma aralığı, Spotify'ın 30 sn'lik önizleme klibi içindeki saniyelerdir
+    val signatureSongTrimStart: Float = 0f,
+    val signatureSongTrimEnd: Float = 30f
 )
 
 @Entity(tableName = "discover_profile")
@@ -34,8 +36,9 @@ data class DiscoverProfile(
     val signatureSongId: String,
     val signatureSongTitle: String,
     val signatureSongArtist: String,
-    val signatureSongTrimStart: Float = 10f,
-    val signatureSongTrimEnd: Float = 40f,
+    val signatureSongPreviewUrl: String = "",
+    val signatureSongTrimStart: Float = 0f,
+    val signatureSongTrimEnd: Float = 30f,
     val compatibilityPercentage: Int,
     val isLiked: Boolean = false,
     val isDisliked: Boolean = false,
