@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -262,7 +263,9 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     // Audio: imza şarkısının kırpılmış kesiti cihazdaki Spotify uygulamasıyla
     // (App Remote, Premium gerektirir) tam şarkının içinden çalınır. Spotify
     // yoksa veya çalma reddedilirse türe göre FM synth'e geri düşülür.
-    fun playAudioForProfile(profile: DiscoverProfile) {
+    // [context] Activity olmalı: App Remote yetkilendirme ekranını bu context
+    // üzerinden açar (Application context ile açılamaz).
+    fun playAudioForProfile(context: Context, profile: DiscoverProfile) {
         if (_activePlayingProfileId.value == profile.id && _isAudioPlaying.value) {
             stopAudio()
             return
@@ -273,7 +276,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         _isAudioPlaying.value = true
         if (profile.signatureSongId.isNotBlank()) {
             remotePlayer.playClip(
-                context = getApplication(),
+                context = context,
                 trackId = profile.signatureSongId,
                 startSec = profile.signatureSongTrimStart,
                 endSec = profile.signatureSongTrimEnd,
@@ -291,7 +294,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Kırpma diyaloğu: kendi imza şarkısının seçilen kesitini dinletir/durdurur. */
-    fun previewMySignatureClip(startSec: Float, endSec: Float) {
+    fun previewMySignatureClip(context: Context, startSec: Float, endSec: Float) {
         if (_activePlayingProfileId.value == MY_TRIM_PREVIEW_ID && _isAudioPlaying.value) {
             stopAudio()
             return
@@ -303,7 +306,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         _activePlayingProfileId.value = MY_TRIM_PREVIEW_ID
         _isAudioPlaying.value = true
         remotePlayer.playClip(
-            context = getApplication(),
+            context = context,
             trackId = trackId,
             startSec = startSec,
             endSec = endSec,

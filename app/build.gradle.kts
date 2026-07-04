@@ -1,3 +1,6 @@
+import java.net.URI
+import java.util.zip.ZipInputStream
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -66,22 +69,39 @@ secrets {
 }
 
 // Spotify App Remote SDK Maven'da yayınlanmaz; ilk derlemede GitHub releases'tan
-// otomatik indirilir. İndirme başarısız olursa hata mesajındaki adresten elle
-// indirip app/libs/ altına koyun.
+// otomatik indirilir. GitHub'a erişilemeyen ortamlar için aynı AAR, repo
+// ağacını zip olarak sunan Go module proxy'sinden çıkarılır. İkisi de
+// başarısız olursa hata mesajındaki adresten elle indirip app/libs/ altına koyun.
 val spotifyAppRemoteAar = file("libs/spotify-app-remote-release-0.8.0.aar")
 val spotifyAppRemoteUrl =
   "https://github.com/spotify/android-sdk/releases/download/v0.8.0-appremote_v2.1.0-auth/spotify-app-remote-release-0.8.0.aar"
+val spotifyAppRemoteFallbackZip =
+  "https://proxy.golang.org/github.com/spotify/android-sdk/@v/v0.4.1-0.20230704105026-5aa4d62465f6.zip"
 
 val downloadSpotifyAppRemote = tasks.register("downloadSpotifyAppRemote") {
   outputs.file(spotifyAppRemoteAar)
   onlyIf { !spotifyAppRemoteAar.exists() }
   doLast {
     spotifyAppRemoteAar.parentFile.mkdirs()
-    try {
-      java.net.URI(spotifyAppRemoteUrl).toURL().openStream().use { input ->
+    val aarName = spotifyAppRemoteAar.name
+    val direct = runCatching {
+      URI(spotifyAppRemoteUrl).toURL().openStream().use { input ->
         spotifyAppRemoteAar.outputStream().use { output -> input.copyTo(output) }
       }
-    } catch (e: Exception) {
+    }
+    if (direct.isSuccess) return@doLast
+    runCatching {
+      URI(spotifyAppRemoteFallbackZip).toURL().openStream().use { input ->
+        ZipInputStream(input).use { zip ->
+          var entry = zip.nextEntry
+          while (entry != null && !entry.name.endsWith("/app-remote-lib/$aarName")) {
+            entry = zip.nextEntry
+          }
+          checkNotNull(entry) { "$aarName yedek zip içinde bulunamadı" }
+          spotifyAppRemoteAar.outputStream().use { output -> zip.copyTo(output) }
+        }
+      }
+    }.onFailure { e ->
       spotifyAppRemoteAar.delete()
       throw GradleException(
         "Spotify App Remote AAR indirilemedi. Elle indirip app/libs/ altına koyun: $spotifyAppRemoteUrl",

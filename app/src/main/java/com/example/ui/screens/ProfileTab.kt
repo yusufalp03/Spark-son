@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -462,6 +463,8 @@ fun SignatureSongTrimmerDialog(
     val myProfile by viewModel.myProfile.collectAsState()
     val activePlayingId by viewModel.activePlayingProfileId.collectAsState()
     val isAudioPlaying by viewModel.isAudioPlaying.collectAsState()
+    // Activity context: App Remote auth ekranı ancak Activity üzerinden açılabilir
+    val context = LocalContext.current
 
     val clipLength = SparkViewModel.CLIP_LENGTH_SECONDS
     // Süre bilinmiyorsa (eski kayıt) 4 dk varsay; Spotify şarkı sonunu kendisi sınırlar
@@ -470,7 +473,9 @@ fun SignatureSongTrimmerDialog(
     val maxStart = (songSeconds - clipLength).coerceAtLeast(0f)
     val isPreviewingClip = isAudioPlaying && activePlayingId == SparkViewModel.MY_TRIM_PREVIEW_ID
 
-    var clipStart by remember {
+    // Profil geç yüklenirse (ilk kompozisyonda myProfile null olabilir) kayıtlı
+    // kırpma başlangıcı kaybolmasın diye anahtar profil verisine bağlı.
+    var clipStart by remember(myProfile?.signatureSongId, myProfile?.signatureSongDurationMs) {
         mutableStateOf((myProfile?.signatureSongTrimStart ?: 0f).coerceIn(0f, maxStart))
     }
     val clipEnd = (clipStart + clipLength).coerceAtMost(songSeconds)
@@ -535,7 +540,7 @@ fun SignatureSongTrimmerDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { viewModel.previewMySignatureClip(clipStart, clipEnd) },
+                    onClick = { viewModel.previewMySignatureClip(context, clipStart, clipEnd) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isPreviewingClip) SparkAccentPink else CosmicSurface
                     ),

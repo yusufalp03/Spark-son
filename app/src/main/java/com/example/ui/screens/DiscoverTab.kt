@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,8 @@ fun DiscoverTab(
     val activePlayingId by viewModel.activePlayingProfileId.collectAsState()
     val isPlaying by viewModel.isAudioPlaying.collectAsState()
     val celebrationProfile by viewModel.matchCelebrationProfile.collectAsState()
+    // Activity context: App Remote auth ekranı ancak Activity üzerinden açılabilir
+    val context = LocalContext.current
 
     Box(
         modifier = modifier
@@ -149,7 +152,7 @@ fun DiscoverTab(
                     DiscoverCard(
                         profile = topProfile,
                         isPlaying = isPlaying && activePlayingId == topProfile.id,
-                        onPlayToggle = { viewModel.playAudioForProfile(topProfile) },
+                        onPlayToggle = { viewModel.playAudioForProfile(context, topProfile) },
                         onLike = { viewModel.swipeRight(topProfile.id) },
                         onPass = { viewModel.swipeLeft(topProfile.id) }
                     )

@@ -5,6 +5,10 @@ import android.util.Log
 import com.spotify.android.appremote.api.ConnectionParams
 import com.spotify.android.appremote.api.Connector
 import com.spotify.android.appremote.api.SpotifyAppRemote
+import com.spotify.protocol.client.CallResult
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,11 +16,18 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * İmza şarkısının kırpılmış kesitini, cihazdaki Spotify uygulaması üzerinden
- * (App Remote SDK) tam şarkının içinden çalar: parçayı başlatır, kırpma
- * başlangıcına atlar ve kesit süresi dolunca duraklatır.
+ * (App Remote SDK) tam şarkının içinden çalar: parçayı başlatır, hemen
+ * duraklatıp kırpma başlangıcına atlar, oradan sürdürür ve kesit süresi
+ * dolunca duraklatır. Bağlantı kesitler arasında açık tutulur; yeniden
+ * yetkilendirme istenmez.
+ *
+ * ÖNEMLİ: [playClip]'e verilen context bir Activity olmalıdır — yetkilendirme
+ * gerektiğinde App Remote bu context üzerinden auth ekranını açar; Application
+ * context ile açılamaz ve bağlantı hata verir.
  *
  * Belirli bir parçayı isteğe bağlı çalmak Spotify tarafında Premium hesap
  * gerektirir. Spotify yüklü değilse, bağlantı kurulamazsa veya çalma
@@ -52,6 +63,13 @@ class SpotifyRemotePlayer(
             return
         }
 
+        val existing = appRemote
+        if (existing != null && existing.isConnected) {
+            startClip(existing, session, trackId, startSec, endSec, onFinished, onError)
+            return
+        }
+        appRemote = null
+
         val params = ConnectionParams.Builder(clientId)
             .setRedirectUri(redirectUri)
             .showAuthView(true)
@@ -85,27 +103,40 @@ class SpotifyRemotePlayer(
     ) {
         val startMs = (startSec * 1000).toLong().coerceAtLeast(0L)
         val clipMs = ((endSec - startSec) * 1000).toLong().coerceAtLeast(1000L)
+        val trackUri = "spotify:track:$trackId"
 
-        remote.playerApi.play("spotify:track:$trackId")
-            .setResultCallback {
-                if (session != sessionId) return@setResultCallback
-                clipJob = scope.launch {
-                    // Parçanın Spotify tarafında yüklenmesine kısa bir pay bırak
-                    delay(400)
-                    if (session != sessionId) return@launch
-                    if (startMs > 0) {
-                        remote.playerApi.seekTo(startMs).setErrorCallback { e ->
-                            Log.w(TAG, "Kesit başına atlanamadı", e)
-                        }
-                    }
-                    delay(clipMs)
-                    if (session == sessionId) {
-                        stop()
-                        onFinished()
-                    }
+        clipJob = scope.launch {
+            try {
+                remote.playerApi.play(trackUri).awaitResult()
+                // Şarkının başı duyulmadan kesite atlayabilmek için hemen duraklat
+                runCatching { remote.playerApi.pause().awaitResult() }
+                if (session != sessionId) return@launch
+
+                // Doğru parçanın yüklenmesini bekle (en çok ~2 sn; parça
+                // yeniden yönlendirildiyse URI eşleşmeyebilir, o zaman devam et)
+                var attempts = 0
+                while (session == sessionId && attempts < 20) {
+                    val state = runCatching { remote.playerApi.playerState.awaitResult() }.getOrNull()
+                    if (state?.track?.uri == trackUri) break
+                    attempts++
+                    delay(100)
                 }
-            }
-            .setErrorCallback { e ->
+                if (session != sessionId) return@launch
+
+                if (startMs > 0) {
+                    runCatching { remote.playerApi.seekTo(startMs).awaitResult() }
+                        .onFailure { e -> Log.w(TAG, "Kesit başına atlanamadı", e) }
+                }
+                remote.playerApi.resume().awaitResult()
+
+                delay(clipMs)
+                if (session == sessionId) {
+                    stop()
+                    onFinished()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 // Ücretsiz hesaplarda isteğe bağlı parça çalma reddedilir
                 Log.w(TAG, "Spotify çalma başarısız (Premium gerekebilir)", e)
                 if (session == sessionId) {
@@ -113,28 +144,51 @@ class SpotifyRemotePlayer(
                     onError()
                 }
             }
+        }
     }
 
+    /**
+     * Çalan kesiti duraklatır; App Remote bağlantısını sonraki kesit için
+     * açık tutar (tamamen koparmak için [release]).
+     */
     fun stop() {
         sessionId++
         clipJob?.cancel()
         clipJob = null
         val remote = appRemote ?: return
-        appRemote = null
+        if (!remote.isConnected) {
+            appRemote = null
+            return
+        }
         try {
             remote.playerApi.pause()
         } catch (e: Exception) {
             Log.e(TAG, "Spotify pause hatası", e)
         }
-        try {
-            SpotifyAppRemote.disconnect(remote)
-        } catch (e: Exception) {
-            Log.e(TAG, "Spotify disconnect hatası", e)
-        }
     }
 
     fun release() {
         stop()
+        val remote = appRemote
+        appRemote = null
+        if (remote != null) {
+            try {
+                SpotifyAppRemote.disconnect(remote)
+            } catch (e: Exception) {
+                Log.e(TAG, "Spotify disconnect hatası", e)
+            }
+        }
         scope.cancel()
     }
+
+    /**
+     * [CallResult]'ı coroutine'e köprüler. (SDK'nın kendi `await()` üyesi
+     * bloklar; bu uzantı askıya alır.)
+     */
+    private suspend fun <T : Any> CallResult<T>.awaitResult(): T =
+        suspendCancellableCoroutine { cont ->
+            setResultCallback { result -> if (cont.isActive) cont.resume(result) }
+            setErrorCallback { error -> if (cont.isActive) cont.resumeWithException(error) }
+            cont.invokeOnCancellation { runCatching { cancel() } }
+        }
 }

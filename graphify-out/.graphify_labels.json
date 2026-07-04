@@ -11,7 +11,7 @@
   "9": "Spotify Profile Sync Service",
   "10": "ProfileTab",
   "11": "Build & Setup Docs",
-  "12": "Instrumented Tests",
+  "13": "Spark 🎵⚡",
   "14": "Theme Colors",
   "15": "Typography",
   "16": "Root Build Script",
@@ -20,6 +20,5 @@
   "19": "AppDatabase",
   "20": "UserProfile",
   "21": "Match",
-  "22": "CLAUDE.md",
-  "23": "build.gradle.kts"
+  "22": "CLAUDE.md"
 }
