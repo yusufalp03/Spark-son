@@ -1,7 +1,7 @@
 {
   "app/build.gradle.kts": {
-    "mtime": 1783175244.0755088,
-    "ast_hash": "871fc371665f8d5b60654b630ca165f7",
+    "mtime": 1783175767.8874938,
+    "ast_hash": "cc3fc185a4dabc0979dad394f9dba2b6",
     "semantic_hash": ""
   },
   "app/src/androidTest/java/com/example/ExampleInstrumentedTest.kt": {
@@ -45,13 +45,13 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/data/SupabaseService.kt": {
-    "mtime": 1783174412.975533,
-    "ast_hash": "a766dba1fc3f6926ee45a70863954fbf",
+    "mtime": 1783175746.4074945,
+    "ast_hash": "4073c404c45c1d0fb21b91233843a102",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/SparkViewModel.kt": {
-    "mtime": 1783175306.327507,
-    "ast_hash": "0d36db9a1c7dcb1399f08340eebe57d9",
+    "mtime": 1783175741.8154945,
+    "ast_hash": "e8c0d684a9143eeb3ba1572c86ec4e6e",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/components/SynthEngine.kt": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/DiscoverTab.kt": {
-    "mtime": 1783175340.491506,
-    "ast_hash": "94fa27deecfa49b10c4d9f8a85e9c806",
+    "mtime": 1783175743.7050211,
+    "ast_hash": "0c532897caa6afb258d39736ac54ca37",
     "semantic_hash": ""
   },
   "app/src/main/java/com/example/ui/screens/LoginScreen.kt": {
