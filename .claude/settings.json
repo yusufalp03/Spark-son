@@ -1,5 +1,30 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew help)",
+      "Bash(./gradlew tasks *)",
+      "Bash(./gradlew :app:testDebugUnitTest *)",
+      "Bash(./gradlew :app:lintDebug *)",
+      "Bash(./gradlew :app:compileDebugKotlin *)",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin *)",
+      "Bash(graphify query *)",
+      "Bash(graphify explain *)",
+      "Bash(graphify path *)",
+      "Bash(graphify update .)"
+    ]
+  },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "timeout": 900
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
