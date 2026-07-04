@@ -146,14 +146,14 @@ fun DiscoverTab(
 
                 SwipeableCard(
                     profile = topProfile,
-                    onLike = { viewModel.swipeRight(topProfile.id) },
+                    onLike = { viewModel.swipeRight(context, topProfile.id) },
                     onPass = { viewModel.swipeLeft(topProfile.id) }
                 ) {
                     DiscoverCard(
                         profile = topProfile,
                         isPlaying = isPlaying && activePlayingId == topProfile.id,
                         onPlayToggle = { viewModel.playAudioForProfile(context, topProfile) },
-                        onLike = { viewModel.swipeRight(topProfile.id) },
+                        onLike = { viewModel.swipeRight(context, topProfile.id) },
                         onPass = { viewModel.swipeLeft(topProfile.id) }
                     )
                 }

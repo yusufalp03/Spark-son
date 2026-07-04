@@ -206,7 +206,8 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun swipeRight(profileId: String) {
+    // [context] Activity olmalı: eşleşme kutlamasında imza şarkısı çalınır
+    fun swipeRight(context: Context, profileId: String) {
         stopAudio()
         viewModelScope.launch {
             val matched = repository.swipeRight(profileId)
@@ -214,7 +215,7 @@ class SparkViewModel(application: Application) : AndroidViewModel(application) {
                 val profile = discoverProfiles.value.find { it.id == profileId }
                 if (profile != null) {
                     _matchCelebrationProfile.value = profile
-                    playAudioForProfile(profile)
+                    playAudioForProfile(context, profile)
                 }
             }
         }

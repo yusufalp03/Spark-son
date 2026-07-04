@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.realtime.RealtimeChannel
 import io.github.jan.supabase.realtime.PostgresAction
@@ -406,9 +407,7 @@ class SupabaseService(private val context: Context) {
         val realtimeChannel = supabaseClient.channel("messages-$matchId")
         val flow = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "messages"
-            filter {
-                eq("match_id", matchId)
-            }
+            filter("match_id", FilterOperator.EQ, matchId)
         }.mapNotNull { action -> parseRealtimeMessage(action.record) }
         activeMessagesChannel = realtimeChannel
         realtimeChannel.subscribe()

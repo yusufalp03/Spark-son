@@ -79,32 +79,35 @@ val spotifyAppRemoteFallbackZip =
   "https://proxy.golang.org/github.com/spotify/android-sdk/@v/v0.4.1-0.20230704105026-5aa4d62465f6.zip"
 
 val downloadSpotifyAppRemote = tasks.register("downloadSpotifyAppRemote") {
-  outputs.file(spotifyAppRemoteAar)
-  onlyIf { !spotifyAppRemoteAar.exists() }
+  // Closure'lara betik nesnesi sızmasın diye (configuration cache) yerel kopyalar
+  val aarFile = spotifyAppRemoteAar
+  val directUrl = spotifyAppRemoteUrl
+  val fallbackZipUrl = spotifyAppRemoteFallbackZip
+  outputs.file(aarFile)
+  onlyIf { !aarFile.exists() }
   doLast {
-    spotifyAppRemoteAar.parentFile.mkdirs()
-    val aarName = spotifyAppRemoteAar.name
+    aarFile.parentFile.mkdirs()
     val direct = runCatching {
-      URI(spotifyAppRemoteUrl).toURL().openStream().use { input ->
-        spotifyAppRemoteAar.outputStream().use { output -> input.copyTo(output) }
+      URI(directUrl).toURL().openStream().use { input ->
+        aarFile.outputStream().use { output -> input.copyTo(output) }
       }
     }
     if (direct.isSuccess) return@doLast
     runCatching {
-      URI(spotifyAppRemoteFallbackZip).toURL().openStream().use { input ->
+      URI(fallbackZipUrl).toURL().openStream().use { input ->
         ZipInputStream(input).use { zip ->
           var entry = zip.nextEntry
-          while (entry != null && !entry.name.endsWith("/app-remote-lib/$aarName")) {
+          while (entry != null && !entry.name.endsWith("/app-remote-lib/${aarFile.name}")) {
             entry = zip.nextEntry
           }
-          checkNotNull(entry) { "$aarName yedek zip içinde bulunamadı" }
-          spotifyAppRemoteAar.outputStream().use { output -> zip.copyTo(output) }
+          checkNotNull(entry) { "${aarFile.name} yedek zip içinde bulunamadı" }
+          aarFile.outputStream().use { output -> zip.copyTo(output) }
         }
       }
     }.onFailure { e ->
-      spotifyAppRemoteAar.delete()
+      aarFile.delete()
       throw GradleException(
-        "Spotify App Remote AAR indirilemedi. Elle indirip app/libs/ altına koyun: $spotifyAppRemoteUrl",
+        "Spotify App Remote AAR indirilemedi. Elle indirip app/libs/ altına koyun: $directUrl",
         e
       )
     }
